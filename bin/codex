@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+find_node() {
+  for candidate in "$HOME"/.nvm/versions/node/*/bin/node /opt/homebrew/bin/node /usr/local/bin/node; do
+    [ -x "$candidate" ] && { printf '%s\n' "$candidate"; return 0; }
+  done
+  command -v node 2>/dev/null
+}
+
+find_codex() {
+  for candidate in "$HOME"/.nvm/versions/node/*/bin/codex /opt/homebrew/bin/codex /usr/local/bin/codex "$HOME/.local/bin/codex"; do
+    [ -x "$candidate" ] && { printf '%s\n' "$candidate"; return 0; }
+  done
+  command -v codex 2>/dev/null
+}
+
+CODEX=$(find_codex || true)
+if [ -z "$CODEX" ]; then
+  printf '%s\n' "codex-history: codex was not found" >&2
+  exit 127
+fi
+
+NODE=$(find_node || true)
+if [ -z "$NODE" ]; then
+  printf '%s\n' "codex-history: node was not found" >&2
+  exit 127
+fi
+
+PATH="$(dirname -- "$NODE"):$PATH"
+export PATH
+
+exec "$CODEX" "$@"

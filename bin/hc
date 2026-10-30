@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+
+find_hc() {
+  for candidate in "$HOME/.local/bin/hc" /opt/homebrew/bin/hc /usr/local/bin/hc; do
+    [ -x "$candidate" ] && { printf '%s\n' "$candidate"; return 0; }
+  done
+  command -v hc 2>/dev/null
+}
+
+HC=$(find_hc || true)
+if [ -z "$HC" ]; then
+  printf '%s\n' "codex-history: hc was not found" >&2
+  exit 127
+fi
+
+exec "$HC" "$@"
