@@ -21,7 +21,7 @@ originally created in another folder.
 Requirements: Node.js 20+, Codex CLI, and Herdr App.
 
 ```sh
-git clone <repository-url>
+git clone git@github.com:naFeKnehC/herdr-codex-sidebar-mod.git
 cd herdr-codex-sidebar-mod
 npm run sync:herdr
 herdr-app check ~/.config/herdr-app/mods/herdr-codex-sidebar-mod
