@@ -16,7 +16,7 @@ if [ -z "$NODE" ]; then
   exit 127
 fi
 
-MAIN="$HERE/../codex-history.mjs"
-[ -f "$MAIN" ] || MAIN="$HERE/../scripts/codex-history.mjs"
+MAIN="$HERE/../helper/codex-history.mjs"
+[ -f "$MAIN" ] || MAIN="$HERE/../codex-history.mjs"
 
 exec "$NODE" "$MAIN" "$@"

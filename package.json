@@ -1,12 +1,12 @@
 {
-  "name": "herdr-codex-history",
+  "name": "herdr-codex-sidebar-mod",
   "version": "0.1.0",
   "description": "A Herdr mod for browsing and resuming Codex history.",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "codex-history": "node scripts/codex-history.mjs",
+    "codex-history": "node mods/herdr-codex-sidebar-mod/helper/codex-history.mjs",
     "sync:herdr": "node scripts/sync-herdr.mjs"
   }
 }

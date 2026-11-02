@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 
 export function cachePath({ home = process.env.HOME, appHome = process.env.HERDR_APP_HOME } = {}) {
   const root = appHome || join(home || ".", ".config", "herdr-app");
-  return process.env.CODEX_HISTORY_CACHE || join(root, "data", "codex-history", "threads.json");
+  return process.env.CODEX_HISTORY_CACHE || join(root, "data", "herdr-codex-sidebar-mod", "threads.json");
 }
 
 export async function readCache(path) {

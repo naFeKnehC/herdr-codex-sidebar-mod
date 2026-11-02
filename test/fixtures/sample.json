@@ -1,11 +1,11 @@
 {
   "projects": [
-    { "id": "p1", "name": "onlyChat", "roots": [{ "path": "/Users/chenkefan/project/onlyChat" }], "position": 1, "recencyAt": 1793300000 },
+    { "id": "p1", "name": "onlyChat", "roots": [{ "path": "/Users/me/project/onlyChat" }], "position": 1, "recencyAt": 1793300000 },
     { "id": "p2", "name": "Empty project", "roots": [{ "path": "/tmp/empty" }], "position": 2, "recencyAt": 0 }
   ],
   "threads": [
-    { "id": "t-new", "projectId": "p1", "cwd": "/Users/chenkefan/project/onlyChat/work", "name": "  New  chat  ", "preview": "Hello", "updatedAt": "1793300000", "recencyAt": "1793300000" },
-    { "id": "t-old", "cwd": "/Users/chenkefan/project/onlyChat", "preview": "Older chat without a project id", "updatedAt": 1793200000 },
+    { "id": "t-new", "projectId": "p1", "cwd": "/Users/me/project/onlyChat/work", "name": "  New  chat  ", "preview": "Hello", "updatedAt": "1793300000", "recencyAt": "1793300000" },
+    { "id": "t-old", "cwd": "/Users/me/project/onlyChat", "preview": "Older chat without a project id", "updatedAt": 1793200000 },
     { "id": "t-orphan", "cwd": "/somewhere/else", "preview": "Preview line\n\nsecond", "updatedAt": 1793200000, "recencyAt": 1793200000 },
     { "id": "t-archived", "projectId": "p1", "archived": true, "preview": "Archived", "updatedAt": 1793400000 }
   ]

@@ -95,7 +95,7 @@ export class CodexAppServer {
 
   async initialize() {
     return this.request("initialize", {
-      clientInfo: { name: "herdr-codex-history", version: "0.1.0" },
+      clientInfo: { name: "herdr-codex-sidebar-mod", version: "0.1.0" },
       capabilities: { experimentalApi: true },
     });
   }
