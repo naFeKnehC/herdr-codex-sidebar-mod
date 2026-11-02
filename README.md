@@ -1,5 +1,7 @@
 # Herdr Codex Sidebar Mod
 
+English | [简体中文](README.zh-CN.md)
+
 Herdr mod for browsing Codex projects and chats, resuming an existing thread,
 and keeping history separate from Herdr's live Agents view.
 Assigned threads resume from their project root, even if the thread was
@@ -29,8 +31,8 @@ herdr-app check ~/.config/herdr-app/mods/herdr-codex-sidebar-mod
 
 The source mod directory is self-contained: it contains its own helper and
 command wrappers. `sync:herdr` copies that directory to
-`~/.config/herdr-app/mods/herdr-codex-sidebar-mod`, so copying the directory directly is
-also enough at runtime. The helper cache remains under
+`~/.config/herdr-app/mods/herdr-codex-sidebar-mod`, so copying the directory
+directly is also enough at runtime. The helper cache remains under
 `~/.config/herdr-app/data/herdr-codex-sidebar-mod` and is not part of the mod.
 
 If Herdr uses a custom home, set the same variable for installation:
@@ -60,7 +62,8 @@ After changing source files, run `npm run sync:herdr` and reload the Herdr mod
 
 ## Layout
 
-- `mods/herdr-codex-sidebar-mod/`: self-contained Herdr UI mod, helper, and wrappers.
+- `mods/herdr-codex-sidebar-mod/`: self-contained Herdr UI mod, helper, and
+  wrappers.
 - `scripts/`: installer.
 - `test/`: unit tests for normalization and live-session matching.
 
