@@ -22,11 +22,6 @@ const raw = {
       available: true,
       sessions: [{ id: "x1", cwd: "/tmp/project", title: "Codex" }],
     },
-    hermes: {
-      available: false,
-      reason: "Hermes state.db not found",
-      sessions: [],
-    },
   },
   warnings: ["top warning"],
 };

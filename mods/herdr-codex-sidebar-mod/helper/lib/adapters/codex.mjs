@@ -54,7 +54,7 @@ export function threadToSession(thread) {
     parentId: thread.parentThreadId ?? thread.parent_thread_id ?? null,
     originator: thread.originator ?? null,
     threadSource: sourceOf(thread) || null,
-    path: null,
+    path: typeof thread.path === "string" && thread.path.trim() ? thread.path.trim() : null,
     capabilities: { preview: true, resume: true },
   };
 }
@@ -85,6 +85,12 @@ export async function readCodexSessions({
       useStateDbOnly: true,
     });
     const sessions = threads.filter(isUserThread).map(threadToSession).filter(Boolean);
+    for (const session of sessions) {
+      // 只有本机存在 rollout（含 Codex 新版的 .jsonl.zst）时才提供预览；
+      // 云端 / 已清理的会话不再让点击进入必然失败的预览 tab。
+      session.capabilities.preview = Boolean(session.path
+        && (exists(session.path) || exists(`${session.path}.zst`)));
+    }
     return { available: true, sessions, warnings: [] };
   } finally {
     server.close();

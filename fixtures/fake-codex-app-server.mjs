@@ -17,6 +17,11 @@ const threads = [
   { id: "t2", cwd: otherRoot, name: "Second", createdAt: 1_800_000_200, updatedAt: 1_800_000_300 },
   { id: "t3", cwd: root, name: "Third", createdAt: 1_800_000_400, updatedAt: 1_800_000_500 },
 ];
+const pathThreads = [
+  { id: "local", cwd: root, name: "Local rollout", path: `${root}/sessions/rollout-local.jsonl` },
+  { id: "compressed", cwd: root, name: "Compressed rollout", path: `${root}/sessions/rollout-compressed.jsonl` },
+  { id: "cloud", cwd: root, name: "Cloud only" },
+];
 const filterThreads = [
   { id: "user-ok", cwd: root, name: "User thread", threadSource: "user", createdAt: 1_800_000_000, updatedAt: 1_800_000_900 },
   { id: "guardian", cwd: root, name: "Guardian review", threadSource: "guardian_review", createdAt: 1_800_000_100 },
@@ -59,6 +64,7 @@ input.on("line", async (line) => {
   if (request.method === "thread/list") {
     if (mode === "request-errors") return fail(-32000, "thread store unavailable");
     if (mode === "filters") return reply({ data: filterThreads, nextCursor: null });
+    if (mode === "paths") return reply({ data: pathThreads, nextCursor: null });
     if (request.params?.cursor === "threads-2") return reply({ data: [threads[2]], nextCursor: null });
     if (request.params?.cursor === "repeat") return reply({ data: [], nextCursor: "threads-2" });
     return reply({ data: threads.slice(0, 2), nextCursor: "threads-2" });

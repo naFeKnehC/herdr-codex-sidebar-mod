@@ -16,12 +16,12 @@
 
 ## 1. 产品定位
 
-**一句话：把本机 Claude Code、Codex、Hermes 的历史会话按 Agent 分区、在每个 Agent 内按真实工作目录聚合，成为 Herdr 中定位、预览和继续工作的入口。**
+**一句话：把本机 Claude Code、Codex 的历史会话按 Agent 分区、在每个 Agent 内按真实工作目录聚合，成为 Herdr 中定位、预览和继续工作的入口。**
 
 它解决的是这条链路：
 
 1. 我记得在某个目录做过一条对话；
-2. 我先选 Claude / Codex / Hermes，再看这个 Agent 在该目录下的会话；不同 Agent 不混在一起；
+2. 我先选 Claude / Codex，再看这个 Agent 在该目录下的会话；不同 Agent 不混在一起；
 3. 我要知道它现在是否已经打开、是否在运行、是否在等我；
 4. 我要么预览历史，要么回到原来的 tab 继续；
 5. 整个过程不能重复启动 Agent，也不能破坏原来的 shell 工作现场。
@@ -30,9 +30,9 @@
 
 | 原则 | 含义 |
 |---|---|
-| cwd 是唯一分组主键 | 目录就是目录；不把 Codex project、Claude 编码目录名或 Hermes project 当作分组依据 |
+| cwd 是唯一分组主键 | 目录就是目录；不把 Codex project、Claude 编码目录名 当作分组依据 |
 | 历史与运行分离 | 历史会话是持久事实；终端、tab、Agent 状态是运行事实 |
-| Agent 适配器隔离 | Claude、Codex、Hermes 各自读取、解析、恢复；核心层只认统一 Session 模型 |
+| Agent 适配器隔离 | Claude、Codex 各自读取、解析、恢复；核心层只认统一 Session 模型 |
 | 事实优先于推断 | 能读到 cwd、session id、Agent 状态就直接使用；推断必须可失效、可纠正 |
 | 不重复启动 | 同一会话已有运行实例时，默认定位而不是再起一个 |
 | 不猜目录 | cwd 缺失或目录不存在时不静默回退到 home；宁可禁用恢复并说明原因 |
@@ -41,7 +41,7 @@
 
 ### 非目标（v0.2 明确不做）
 
-- 替代 Claude Code、Codex、Hermes 的聊天界面。
+- 替代 Claude Code、Codex 的聊天界面。
 - 恢复 Codex Desktop 的 project / assignment 分组。
 - 创建、删除、归档、批量移动历史会话。
 - 修改 transcript、伪造 Agent 状态或接管终端画面。
@@ -56,7 +56,7 @@
 
 ### 目标用户
 
-- 在 Herdr 中长期使用 Claude Code、Codex、Hermes，同时开多个目录/space 的开发者。
+- 在 Herdr 中长期使用 Claude Code、Codex，同时开多个目录/space 的开发者。
 - 经常需要回到昨天/上周某个目录下的会话继续工作的人。
 - 同一目录下混用多个 Agent，希望按 Agent 分开查看、快速判断“这个 Agent 谁在跑、谁在等我”的人。
 
@@ -65,12 +65,12 @@
 | 编号 | 用户任务 | 成功标准 |
 |---|---|---|
 | T1 | 按目录找到会话 | 目录列表按最近活动排序，显示真实 cwd |
-| T2 | 按 Agent 查看目录 | 顶部选择 Claude/Codex/Hermes 后，右侧只显示该 Agent 的目录与会话 |
+| T2 | 按 Agent 查看目录 | 顶部选择 Claude/Codex 后，右侧只显示该 Agent 的目录与会话 |
 | T3 | 快速确认会话内容 | 单击看到只读历史预览，不启动 Agent |
 | T4 | 继续会话 | 双击在正确 cwd 恢复正确 Agent 的会话 |
 | T5 | 回到已打开会话 | 定位已有 tab/pane，不重复启动 |
 | T6 | 判断运行状态 | 区分执行中、需要处理、完成未查看、等待输入、已退出 |
-| T7 | 切换 Agent | 三个 Agent 独立视图；没有 All，不混排 |
+| T7 | 切换 Agent | 两个 Agent 独立视图；没有 All，不混排 |
 | T8 | 保留工作现场 | Agent 退出后，预览/占位 tab 仍可复用；`finished` 终端不强行复用 |
 
 ---
@@ -94,18 +94,17 @@
 ┌──────────────┐
 │ ✓ Claude 26  │
 │   Codex 12   │
-│   Hermes 2   │
 └──────────────┘
 ```
 
-> 右上角是一个 Agent 切换按钮，显示当前 Agent 和会话数；展开后三选一。右侧列表只显示当前 Agent 的会话。切换 Agent 后，目录、会话、计数和空状态整体切换，不会把三个 Agent 混在同一列表。
+> 右上角是一个 Agent 切换按钮，显示当前 Agent 和会话数；展开后二选一。右侧列表只显示当前 Agent 的会话。切换 Agent 后，目录、会话、计数和空状态整体切换，不会把两个 Agent 混在同一列表。
 
 ### 区域职责
 
 | 区域 | 内容 | 说明 |
 |---|---|---|
 | 标题栏 | 产品名、Agent 切换器、刷新 | 不显示全局“已打开/执行中”汇总 |
-| Agent 切换器 | 一个按钮，显示当前 Agent + 会话数；展开后 Claude / Codex / Hermes 三选一 | 默认记住上次选择；没有 All |
+| Agent 切换器 | 一个按钮，显示当前 Agent + 会话数；展开后 Claude / Codex 二选一 | 默认记住上次选择；没有 All |
 | 目录栏 | 当前 Agent 的目录名、会话总数 | 不常驻显示完整 cwd；选择目录不切换 Herdr 焦点 |
 | 会话列表 | 标题、最近时间、状态、分页 | 只含当前 Agent；不显示目录路径行；不需要逐行 Agent 徽标 |
 | 无目录分组 | `No directory` | 当前 Agent 中 cwd 缺失/为空的会话；可预览，可通过 fallback 目录恢复 |
@@ -113,7 +112,7 @@
 
 ### 选择与焦点
 
-- **Agent 选择**：`Claude` / `Codex` / `Hermes` 三选一；没有 `All`；默认恢复上次选择，没有记录时按 Claude → Codex → Hermes 选择第一个可用的。
+- **Agent 选择**：`Claude` / `Codex` 二选一；没有 `All`；默认恢复上次选择，没有记录时按 Claude → Codex 选择第一个可用的。
 - **目录选择**：按 Agent 分别记住上次选中的 cwd；刷新后尽量保留。
 - **会话行高亮**：表示“这条会话有已知的打开实例或预览”，不是“当前 Herdr 焦点”。
 - **Herdr 焦点**：由 Herdr 的 space/tab/pane 决定，不能与 Agent 或目录选择混为一谈。
@@ -124,7 +123,7 @@
 
 ```text
 AgentView {
-  agent: "claude" | "codex" | "hermes"
+  agent: "claude" | "codex"
   available: boolean
   sync: { status, stale, warnings }
   directories: DirectoryGroup[]
@@ -134,7 +133,7 @@ AgentView {
 }
 
 DirectoryGroup {
-  agent: "claude" | "codex" | "hermes"
+  agent: "claude" | "codex"
   key: string            // 规范化 cwd，或 "__no_cwd__"
   cwd: string | null
   displayName: string    // 目录名；根目录为 "/"
@@ -145,7 +144,7 @@ DirectoryGroup {
 
 Session {
   key: string            // `${agent}:${id}`
-  agent: "claude" | "codex" | "hermes"
+  agent: "claude" | "codex"
   id: string
   title: string
   preview: string
@@ -170,7 +169,7 @@ Session {
 ### 4.0 视图分区
 
 - 同步结果仍是统一的 `Session[]`，但 UI 一次只渲染一个 `AgentView`。
-- 每个 `DirectoryGroup` 只属于一个 Agent；同一 cwd 可以在三个 AgentView 中各有一组，但不会合并成一个混合列表。
+- 每个 `DirectoryGroup` 只属于一个 Agent；同一 cwd 可以在两个 AgentView 中各有一组，但不会合并成一个混合列表。
 - `AgentView.counts.total` 只用于切换器和目录计数；不显示“已打开/执行中”全局汇总。
 - 每个 AgentView 独立保存目录选择和分页；切换 Agent 不覆盖另一个 Agent 的状态。
 
@@ -209,16 +208,14 @@ Session {
 - 同一 Agent 同一 id 出现多条时，取 `lastActivityAt` 更新、字段更完整的一条。
 - Claude Code 只读取 `projects/<encoded>/<session-id>.jsonl` 顶层文件；`subagents/` 下的文件不算独立会话。
 - Codex 以 app-server 返回的 thread id 为准；重复 id 去重。
-- Hermes 以 `sessions.id` 为准；压缩产生的 lineage 由适配器投影到同一逻辑会话。
 
 ### 4.5 默认过滤
 
 | 类型 | 默认 | 说明 |
 |---|---|---|
-| Agent 范围 | 单选 | 一次只显示 Claude / Codex / Hermes 中的一个；没有 All |
+| Agent 范围 | 单选 | 一次只显示 Claude / Codex 中的一个；没有 All |
 | `archived` | 隐藏 | P1 提供“显示归档”开关 |
-| `hidden`（Hermes） | 隐藏 | onboarding/Bot Chat 等内部会话 |
-| `subagent` | 隐藏 | Claude 子代理、Codex guardian/subagent、Hermes 子会话 |
+| `subagent` | 隐藏 | Claude 子代理、Codex guardian/subagent |
 | 无 cwd | 显示 | 进入 `No directory`，可通过 fallback 恢复 |
 | 目录不存在 | 显示 | 标记 missing，可通过 fallback 恢复 |
 | 空目录 | 不显示 | 目录分组只由会话产生 |
@@ -239,7 +236,7 @@ Session {
 
 - `effectiveCwd` 同时用于 space 选择/创建、`tab.new` / `space.new` 的 folder、placeholder 的 `cd`、终端标签 `agent.cwd` 和 live 匹配。
 - fallback 配置优先级：全局配置 → 当前 Agent 配置 → 统计默认值（现存目录的公共父目录，其次出现最多的目录）。
-- Codex 在 fallback/override 恢复时不带 `-C`，由 tab 的 folder 决定目录；Hermes 使用 `--no-restore-cwd`。
+- Codex 在 fallback/override 恢复时不带 `-C`，由 tab 的 folder 决定目录。
 - 目录在恢复前用 `test -d` 重新验证；失效的 space 不复用，必要时新建。
 - 显式 `Move to directory…` 只写本 mod 的本地 override，改变分组和后续恢复目录，不修改 Agent 原始会话数据。
 
@@ -253,9 +250,9 @@ Session {
 
 | 编号 | 功能 | 期望行为 |
 |---|---|---|
-| F-01 | 统一同步 | 并行读取 Claude Code、Codex、Hermes；单个失败不影响其他 Agent |
+| F-01 | 统一同步 | 并行读取 Claude Code、Codex；单个失败不影响其他 Agent |
 | F-02 | cwd 分组 | 在每个 Agent 视图内按真实 cwd 聚合；不同 Agent 不混排 |
-| F-03 | Agent 切换 | 顶部一个切换按钮，展开 Claude/Codex/Hermes 三选一；没有 All；切换后只显示该 Agent |
+| F-03 | Agent 切换 | 顶部一个切换按钮，展开 Claude/Codex 二选一；没有 All；切换后只显示该 Agent |
 | F-04 | 会话列表 | 标题、相对时间、状态、分页；只含当前 Agent；空目录明确空状态 |
 | F-05 | 单击预览 | 只读 transcript，不启动 Agent |
 | F-06 | 双击恢复 | 在正确 cwd 恢复正确 Agent 的会话 |
@@ -283,7 +280,7 @@ Session {
 
 | 编号 | 功能 | 说明 |
 |---|---|---|
-| F-21 | 新建会话 | 从当前目录新建 Claude/Codex/Hermes 会话 |
+| F-21 | 新建会话 | 从当前目录新建 Claude/Codex 会话 |
 | F-22 | 归档/取消归档 | 需要各 Agent 的写接口确认 |
 | F-23 | 键盘导航 | 上下选择、回车打开、Esc 返回 |
 | F-24 | 右键菜单 | 复制 id、打开目录、关闭实例 |
@@ -325,7 +322,7 @@ Session {
 
 ### 6.3 Agent 切换
 
-- 顶部只有一个 Agent 切换按钮，显示当前 Agent + 会话数；点击展开 `Claude` / `Codex` / `Hermes` 三选一，没有 `All`。
+- 顶部只有一个 Agent 切换按钮，显示当前 Agent + 会话数；点击展开 `Claude` / `Codex` 二选一，没有 `All`。
 - 选中项用背景/勾选/边框等非颜色单一手段标明；不可用项禁用并给原因。
 - 会话列表不显示目录路径行；当前 Agent 由切换按钮标明，当前目录由左侧选中项标明。
 - 切换后，目录栏、会话栏、空状态全部切到该 Agent。
@@ -362,7 +359,7 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 
 ### 7.1 分组
 
-- **在每个 Agent 视图内，只按会话的 `cwd` 分组**；不使用 Codex `project_id`、`.codex-global-state.json`、Claude 编码目录名、Hermes `projects.db`。
+- **在每个 Agent 视图内，只按会话的 `cwd` 分组**；不使用 Codex `project_id`、`.codex-global-state.json`、Claude 编码目录名。
 - 不做父目录汇总：`/a/b` 和 `/a/b/c` 是两个目录。
 - 同名目录必须按完整路径分开；例如 `/work/app` 与 `/tmp/app`。
 - 同一 cwd 下不同 Agent 的会话**不放在同一列表**；它们分别属于各自的 AgentView，通过顶部切换查看。
@@ -388,7 +385,7 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 ### 7.3 多根目录
 
 - 本版只认 `cwd`。
-- Codex `runtime_workspace_roots`、Codex `project_roots`、Hermes `project_folders` 不作为分组键；可作为 P1 的辅助信息展示，但不能改变目录分组。
+- Codex `runtime_workspace_roots`、Codex `project_roots` 不作为分组键；可作为 P1 的辅助信息展示，但不能改变目录分组。
 - 一个会话如果 cwd 为空，即使它有 project/root 信息，也进入 `No directory`；不猜测目录。
 
 ### 7.4 归档、隐藏、子代理
@@ -407,9 +404,8 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 |---|---|---|---|---|---|
 | Claude Code | `~/.claude/projects/*/*.jsonl` 顶层文件 | JSONL 中的 `cwd` | `custom-title` > `ai-title` > 首条用户文本 > `last-prompt` | JSONL 的 user/assistant 文本 | `cd <cwd> && claude --resume <id>` |
 | Codex | app-server `thread/list`（`archived:false`、`useStateDbOnly:true`） | thread 的 `cwd` | `name` > `title` > `preview` > 首条用户文本 | app-server/rollout transcript | `codex --no-daemon -C <cwd> resume <id>` |
-| Hermes | `~/.hermes/state.db` 的 `sessions` | `sessions.cwd`（可空） | `title` > 首条用户文本 | `messages` 表 | `cd <cwd> && hermes --resume <id>` |
 
-适配器只负责产出 `Session`；UI 按 `Session.agent` 分到三个独立视图，不把三个适配器的结果混在一个列表。
+适配器只负责产出 `Session`；UI 按 `Session.agent` 分到两个独立视图，不把两个适配器的结果混在一个列表。
 
 ### 8.2 Claude Code
 
@@ -471,36 +467,7 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 - cwd 缺失/不存在/无权限：禁用恢复。
 - 已有实例的定位逻辑沿用现有 Codex 匹配器。
 
-### 8.4 Hermes
-
-**发现**
-
-- 数据根默认 `~/.hermes`，数据库 `state.db`。
-- 只读查询 `sessions` 表：`hidden=0`；`archived` 作为标记默认隐藏；`parent_session_id` 非空视为子会话默认隐藏。
-- `projects.db` 不参与分组；即使有项目，也按 `sessions.cwd` 分组。
-- SQLite 使用只读/快照方式，避免锁库；WAL 活跃时允许读旧快照并提示 stale。
-
-**解析**
-
-- id → session id；`cwd` → 目录；`title` > 首条用户消息 > `Untitled chat`。
-- `started_at`、`last_activity_at` 为 Unix 秒；缺失按 `started_at`。
-- `messages` 表按 id/timestamp 排序；只渲染 user/assistant；tool 消息折叠。
-- 压缩 lineage 的多个 session 由适配器投影为一条逻辑会话，保留最新 tip 的标题/时间。
-
-**运行状态**
-
-- Herdr `agents()` 中有 `hermes` Agent 时，以 Herdr 状态为准。
-- `runtime/active_sessions.json` 有 entry 时可作为线索；为空不推断。
-- `sessions.ended_at` 为空只表示“没有记录结束”，不能单独当作正在运行；结合 Herdr/最近活动判断。
-- 状态未知时显示“已打开·状态未知”或纯历史，不伪造 working。
-
-**恢复**
-
-- `cd <cwd> && hermes --resume <session-id>`。
-- Hermes 支持 `--resume <session_id>`；cwd 缺失/不存在/无权限时禁用恢复。
-- 不要使用 `--resume latest` 代替明确 id。
-
-### 8.5 检测、缺失与降级
+### 8.4 检测、缺失与降级
 
 | 情况 | 行为 |
 |---|---|
@@ -509,9 +476,9 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 | 二进制不存在 | 历史可见；恢复不可用，显示原因 |
 | 某个适配器超时 | 该 Agent 保留旧缓存并标记 stale；其他 Agent 正常刷新 |
 | 某个适配器解析失败 | 记录 warning；跳过坏记录，保留可解析记录 |
-| 三个都失败 | 保留旧缓存；无缓存则空列表 + 错误与重试 |
+| 两个都失败 | 保留旧缓存；无缓存则空列表 + 错误与重试 |
 
-三个适配器都支持用 helper 参数覆盖数据根，仅用于测试/隔离；用户默认路径不变。
+两个适配器都支持用 helper 参数覆盖数据根，仅用于测试/隔离；用户默认路径不变。
 
 ---
 
@@ -554,7 +521,7 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 |---|---|---|
 | terminal `state` | `live` / `finished` | 终端是否仍在运行；finished 不可直接操作 |
 | Agent `status` | `working` / `blocked` / `done` / `idle` | 关联 Agent 当前在做什么 |
-| Agent `app`/`program.key` | `claude` / `codex` / `hermes` | 决定使用哪个匹配器和恢复命令 |
+| Agent `app`/`program.key` | `claude` / `codex` | 决定使用哪个匹配器和恢复命令 |
 | 无 Agent | 普通 shell 或其他程序 | 只能说明“已打开/未知” |
 | Space/Tab 聚合状态 | 多个 Agent 的聚合 | 不能直接作为单条会话状态 |
 | `settled` | 本屏幕收起 | 不影响运行和工作状态 |
@@ -567,7 +534,6 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 - **`blocked` 优先级最高**；不得自动发送继续指令。
 - **不能从终端画面文字猜状态**；只使用 Herdr/适配器报告的事实。
 - Claude 的 `busy` 只映射为 working；没有 `done` 就不显示 done。
-- Hermes 没有可信状态时显示 unknown，不伪造 working。
 
 ### 9.4 计数
 
@@ -602,7 +568,6 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 |---|---|---|
 | Claude Code | `claude --resume <session-id>` | `cd <cwd>` 后执行；cwd 必须存在 |
 | Codex | `codex --no-daemon -C <cwd> resume <thread-id>` | 使用 cwd；不存在则禁用 |
-| Hermes | `hermes --resume <session-id>` | `cd <cwd>` 后执行；cwd 必须存在 |
 
 - 恢复前必须确认会话 id 和 Agent 类型，不能把 Claude id 传给 Codex。
 - cwd 缺失/不存在/无权限：恢复按钮禁用，显示“Working directory unavailable”；不静默回退 home。
@@ -627,12 +592,12 @@ v0.2 不提供：右键菜单、搜索、新建、归档、批量操作、拖拽
 
 ### 10.4 tab 标题与标签
 
-- 新 tab 标题使用会话标题；没有标题用 `Claude`/`Codex`/`Hermes` + `Untitled`。
+- 新 tab 标题使用会话标题；没有标题用 `Claude`/`Codex` + `Untitled`。
 - 识别到会话后跟随最新标题；用户手动改名后停止覆盖。
 - 新标签命名空间：
 
 ```text
-agent.kind=claude|codex|hermes
+agent.kind=claude|codex
 agent.session.id=<id>
 agent.cwd=<cwd>
 agent.managed=true
@@ -652,8 +617,8 @@ agent.resume.exit=<code>
 ### 11.1 同步
 
 - 默认每 60 秒 + 手动 Refresh。
-- 三个适配器并行；各自超时、各自缓存、各自 warning。
-- Claude/Hermes 只读本地文件/数据库；Codex 启动 app-server。
+- 两个适配器并行；各自超时、各自缓存、各自 warning。
+- Claude 只读本地文件；Codex 启动 app-server。
 - 同步中重复 Refresh 不并发。
 - 同步失败保留旧数据；不要因为一个 Agent 失败清空整个列表。
 
@@ -672,7 +637,7 @@ agent.resume.exit=<code>
 |---|---|---|
 | 首次加载 | `Loading…` | 等待同步 |
 | 没有任何会话 | `No sessions found` + 检查路径/刷新 | 检查 Agent 数据根 |
-| 当前 Agent 没有会话 | `No Claude/Codex/Hermes sessions` | 切换 Agent/刷新 |
+| 当前 Agent 没有会话 | `No Claude/Codex sessions` | 切换 Agent/刷新 |
 | 当前 Agent 不可用 | 切换按钮禁用 + 原因 | 安装/修复后刷新 |
 | 目录下没有会话 | `No sessions in this directory` | 切换目录/刷新 |
 | 单 Agent 不可用 | 该 Agent 切换按钮不可用 + 原因 | 安装/修复后刷新 |
@@ -694,11 +659,11 @@ agent.resume.exit=<code>
 | 编号 | 验收条件 |
 |---|---|
 | A-01 | 全新安装后 `herdr-app check` 通过，侧栏可显示 |
-| A-02 | 顶部可切换 Claude/Codex/Hermes；每次只显示一个 Agent 的目录与会话，不混排 |
+| A-02 | 顶部可切换 Claude/Codex；每次只显示一个 Agent 的目录与会话，不混排 |
 | A-03 | 同一 Agent 内按真实 cwd 分组；同名不同路径目录不合并；尾部斜杠/symlink 规范化正确 |
 | A-04 | Agent 切换正确，目录/会话/计数/空状态随 Agent 整体切换；无 All |
 | A-05 | 单击只读预览，不启动任何 Agent |
-| A-06 | 三种 Agent 都能在正确 cwd 恢复正确 session id |
+| A-06 | 两种 Agent 都能在正确 cwd 恢复正确 session id |
 | A-07 | 已有实例时定位，不重复创建 tab/终端 |
 | A-08 | working/blocked/done/idle/busy/unknown 显示正确，不伪造状态 |
 | A-09 | 单 Agent 失败时其他 Agent 和旧缓存仍可用 |
@@ -731,45 +696,33 @@ agent.resume.exit=<code>
 | D-04 | 无 cwd 会话是否展示 | 展示在 `No directory`，恢复禁用 |
 | D-05 | 目录不存在是否允许 home fallback | 默认不允许；用户显式选择才允许 |
 | D-06 | 无匹配 space 时是否新建 | 新建目录 space，名称取目录名 |
-| D-07 | Agent 切换器样式 | 一个按钮显示当前 Agent + 会话数；展开三选一菜单；不可用禁用；不能只靠颜色 |
-| D-08 | Hermes 无 cwd 的 onboarding 会话 | 默认 hidden 已过滤；非 hidden 的进 No directory |
+| D-07 | Agent 切换器样式 | 一个按钮显示当前 Agent + 会话数；展开二选一菜单；不可用禁用；不能只靠颜色 |
 | D-09 | 搜索/目录树优先级 | P1；不阻塞 P0 |
 | D-10 | 旧 `codex.*` 标签 | 读取兼容；新写入 `agent.*` |
-| D-11 | 默认显示哪个 Agent | 记住上次选择；没有记录时按 Claude → Codex → Hermes 选第一个可用 |
+| D-11 | 默认显示哪个 Agent | 记住上次选择；没有记录时按 Claude → Codex 选第一个可用 |
 | D-12 | 是否保留 All 混合视图 | 不保留；一次只显示一个 Agent |
 
 ---
 
-## 14. 当前实现与目标的差距
+## 14. 当前实现状态
 
-当前代码是 Codex-only 版本，核心差距不是“再加两个数据源”，而是分组模型从 **project/assignment** 换成 **cwd**。
+本版已落地 Claude Code + Codex 双适配器、统一 Session 模型和按真实 cwd 分组。
 
-| 编号 | 当前行为 | 目标行为 |
-|---|---|---|
-| G-01 | 项目栏按 Codex project/assignment 分组 | 顶部 Agent 切换器 + 每个 Agent 内按真实 cwd 分组 |
-| G-02 | helper 只调 Codex app-server `project/list` + `thread/list` | 三个适配器并行；Codex 不再需要 `project/list` |
-| G-03 | 只支持 Codex transcript/resume | Claude/Hermes 各自的预览与恢复 |
-| G-04 | 标签使用 `codex.*` | 通用 `agent.*`，兼容旧标签 |
-| G-05 | 运行匹配只认 Codex | 按 `agent.kind` 分派匹配器 |
-| G-06 | 状态只映射 Codex Agent | 统一状态模型，Claude busy/idle，Hermes unknown |
-| G-07 | 缓存 schema 1 / `threads.json` | schema 2 / `history.json`，按 Agent 部分缓存 |
-| G-08 | 无 cwd 会话进入 Unassigned/项目推断 | 进入 `No directory`，不猜目录 |
-| G-09 | 子代理只打标不过滤 | 默认过滤，P1 可展开 |
-| G-10 | 测试基线 69 个，全部 Codex-only | 新增目录、三适配器、统一匹配测试 |
-
-实施顺序建议：
-
-1. 先抽统一 `Session` / `DirectoryGroup` 模型和 cwd 规范化；
-2. 把 Codex 适配器改成只产出 Session，不再产出项目；
-3. 增加 Claude 适配器（JSONL + live 文件）；
-4. 增加 Hermes 适配器（只读 SQLite）；
-5. 改 UI 为 Agent 切换器 + 单 Agent 目录栏 + 单 Agent 会话列表；
-6. 改标签/匹配/恢复为 `agent.*`；
-7. 补测试与真实冒烟。
+| 项目 | 现状 |
+|---|---|
+| 历史同步 | helper 并行读取 Claude JSONL 与 Codex app-server；单个失败保留旧缓存并标记 stale |
+| Agent 切换 | 顶部切换器只在 Claude / Codex 之间切换，没有 All；切换后目录、会话、计数、空状态整体切换 |
+| cwd 分组 | 每个 Agent 内按真实 `cwd` 精确分组；不使用 Codex project/assignment 或 Claude 编码目录名 |
+| 预览 | 单击只读历史；Codex 支持普通 `.jsonl` 与压缩后的 `.jsonl.zst`；没有本地 transcript 时不提供预览入口 |
+| 恢复 | Claude `--resume`；Codex `--no-daemon -C <cwd> resume`；fallback/override 时 Codex 不带 `-C` |
+| space 复用 | 按精确 cwd 复用 folder 命中或 pane cwd 命中的本机 space，不重复新建 |
+| 标签 | 新写入统一 `agent.*`，兼容读取旧 `codex.*` |
+| 缓存 | schema 2 / `history.json`，原子写入、权限 0600，按 Agent 保留失败前数据 |
+| 测试 | `node --test` 覆盖两个适配器、cwd 分组、恢复命令、预览、缓存与 UI 纯函数 |
 
 兼容性：
 
-- 保留 mod id `herdr-codex-sidebar-mod`，避免安装路径断裂；显示名改为 `Agent History`。
+- 保留 mod id `herdr-codex-sidebar-mod`，避免安装路径断裂。
 - 旧缓存不迁移；首次同步重建。
 - 旧 `codex.*` 标签只读兼容，不阻塞新标签写入。
 
@@ -788,7 +741,6 @@ agent.resume.exit=<code>
 | `helper/agent-history.mjs` | `sync` / `preview` / `status` / `reconcile` CLI |
 | `helper/lib/adapters/claude.mjs` | Claude Code JSONL、live 文件、标题、预览 |
 | `helper/lib/adapters/codex.mjs` | Codex app-server thread/list、transcript、运行匹配 |
-| `helper/lib/adapters/hermes.mjs` | Hermes state.db、messages、live 线索、预览 |
 | `helper/lib/normalize.mjs` | cwd 规范化、Agent 分区、目录分组、去重、排序 |
 | `helper/lib/cache.mjs` | schema 2 缓存、原子写入、0600 |
 | `helper/lib/transcript.mjs` | 通用 transcript 渲染与 ANSI 清理 |
@@ -796,9 +748,9 @@ agent.resume.exit=<code>
 ### 数据流
 
 ```text
-Claude JSONL ─┐
-Codex app-server ├─> 各 Agent 适配器 ─> 统一 Session[] ─> 按 Agent 分区 ─> cwd 分组 ─> history.json
-Hermes state.db ─┘                                      │
+Claude JSONL ──────┐
+Codex app-server ──┴─> 各 Agent 适配器 ─> 统一 Session[] ─> 按 Agent 分区 ─> cwd 分组 ─> history.json
+                                                       │
                                                         ▼
 Herdr terminals/panes/agents/spaces ─────────────> 当前 AgentView + 状态匹配 + 点击编排
                                                         │

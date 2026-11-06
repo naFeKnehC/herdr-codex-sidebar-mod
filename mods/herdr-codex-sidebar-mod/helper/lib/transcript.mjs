@@ -1,5 +1,6 @@
 import { access, readFile, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { zstdDecompressSync } from "node:zlib";
 
 const ANSI_PATTERN = /\x1b(?:\][^\x07]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|[@-_])/g;
 const CONTROL_PATTERN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
@@ -15,7 +16,7 @@ export function sanitizeTerminalText(value) {
     .trim();
 }
 
-const AGENT_NAMES = { claude: "Claude", codex: "Codex", hermes: "Hermes" };
+const AGENT_NAMES = { claude: "Claude", codex: "Codex" };
 export const agentDisplayName = (agent) => AGENT_NAMES[agent] || "Agent";
 
 function contentText(content) {
@@ -74,6 +75,15 @@ export function parseTranscriptLines(lines) {
   return messages.filter((message) => message.text);
 }
 
+// Codex 0.163+ 会把旧会话压缩成 `.jsonl.zst`；app-server 返回的 path 仍是
+// 未压缩名字，所以显式 path 也要补试 `.zst`。
+function transcriptCandidates(path) {
+  const value = String(path ?? "");
+  if (!value) return [];
+  if (value.endsWith(".jsonl.zst")) return [value, value.slice(0, -4)];
+  return [value, `${value}.zst`];
+}
+
 async function walkJsonl(directory, suffix, output) {
   let entries;
   try { entries = await readdir(directory, { withFileTypes: true }); }
@@ -81,17 +91,19 @@ async function walkJsonl(directory, suffix, output) {
   for (const entry of entries) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) await walkJsonl(path, suffix, output);
-    else if (entry.isFile() && entry.name.endsWith(".jsonl") && entry.name.includes(suffix)) {
+    else if (entry.isFile()
+      && (entry.name.endsWith(".jsonl") || entry.name.endsWith(".jsonl.zst"))
+      && entry.name.includes(suffix)) {
       output.push(path);
     }
   }
 }
 
 export async function findTranscriptPath({ codexHome, threadId, path = null }) {
-  if (path) {
+  for (const candidate of transcriptCandidates(path)) {
     try {
-      await access(path);
-      return path;
+      await access(candidate);
+      return candidate;
     } catch {}
   }
   if (!codexHome || !threadId) return null;
@@ -115,10 +127,16 @@ export async function readThreadName({ codexHome, threadId }) {
   return null;
 }
 
+async function readTranscriptText(path) {
+  const buffer = await readFile(path);
+  if (!path.endsWith(".zst")) return buffer.toString("utf8");
+  return zstdDecompressSync(buffer).toString("utf8");
+}
+
 export async function readThreadTranscript({ codexHome, threadId, path = null }) {
   const transcriptPath = await findTranscriptPath({ codexHome, threadId, path });
   if (!transcriptPath) throw new Error(`No local transcript found for thread ${threadId}`);
-  const lines = (await readFile(transcriptPath, "utf8")).split("\n");
+  const lines = (await readTranscriptText(transcriptPath)).split("\n");
   return { path: transcriptPath, messages: parseTranscriptLines(lines) };
 }
 

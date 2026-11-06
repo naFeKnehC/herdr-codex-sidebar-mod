@@ -2,14 +2,14 @@
 
 [English](README.md) | 简体中文
 
-一个在 Herdr 中按 Agent（Claude Code / Codex / Hermes）和真实工作目录
+一个在 Herdr 中按 Agent（Claude Code / Codex）和真实工作目录
 浏览、预览、恢复历史会话的 mod。侧栏一次只显示一个 Agent，通过右上角
-切换器在三者之间切换；每个 Agent 内按会话的真实 `cwd` 精确分组，不使用
-Codex project/assignment、Claude 编码目录名或 Hermes projects.db。
+切换器在两者之间切换；每个 Agent 内按会话的真实 `cwd` 精确分组，不使用
+Codex project/assignment 或 Claude 编码目录名。
 
 ## 使用
 
-- 右上角 Agent 切换器：Claude / Codex / Hermes 三选一，没有 All，不混排。
+- 右上角 Agent 切换器：Claude / Codex 二选一，没有 All，不混排。
 - 单击对话：打开带标题的 tab，输出只读历史预览，不启动任何 Agent。
 - 双击对话：在正确 cwd 中恢复对应 Agent 的会话。
 - 已在运行的会话会直接聚焦，不会重复启动。
@@ -20,7 +20,7 @@ Codex project/assignment、Claude 编码目录名或 Hermes projects.db。
 ## 安装
 
 要求：Node.js 20+、Herdr App，以及至少一个已安装的 Agent（Claude Code /
-Codex / Hermes）。
+Codex）。
 
 ```sh
 git clone git@github.com:naFeKnehC/herdr-codex-sidebar-mod.git

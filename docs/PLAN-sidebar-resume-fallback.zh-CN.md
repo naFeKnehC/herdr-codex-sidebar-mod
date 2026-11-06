@@ -1,5 +1,7 @@
 # Agent History 侧栏：恢复策略与展示改造方案
 
+> **历史文档**：本文记录 fallback/展示改造的设计过程。Hermes 支持已从 mod 中移除，文中所有 Hermes 段落仅作历史记录，不再适用；当前产品规格以 [PRODUCT.zh-CN.md](PRODUCT.zh-CN.md) 为准。
+
 > 状态：**方案，未改代码、未安装、未提交**。  
 > 目标：解决 cwd 失效 / 不可访问 / 无 cwd 时侧栏统一显示 `No resume` 的问题，改为“原目录恢复 → 备用目录恢复 → 真正不可用”的分层策略，并让 Herdr 的 space/tab、终端标签、live 匹配使用同一个 `effectiveCwd`。  
 > 前提：采用任务书中已实测确认的 Codex 0.166、Claude Code 2.1.318、Hermes 0.22.x 和 Herdr 归属规则，不在本方案中重复验证。

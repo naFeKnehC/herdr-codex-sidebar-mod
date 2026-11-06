@@ -17,6 +17,10 @@ function keyOf(value, home = "/") {
 
 function sortSpaceMatches(matches) {
   return [...matches].sort((left, right) => {
+    // folder 精确相等优先于 pane cwd 命中，避免同一目录有多个候选时
+    // 选中一个 folder 已被改到别处的旧 space。
+    const rank = (left?.rank ?? 0) - (right?.rank ?? 0);
+    if (rank !== 0) return rank;
     const leftId = String(left?.space?.id ?? "");
     const rightId = String(right?.space?.id ?? "");
     if (leftId !== rightId) return leftId < rightId ? -1 : 1;
@@ -25,8 +29,10 @@ function sortSpaceMatches(matches) {
 }
 
 // 只按精确 cwd 复用 space：folder 精确相等且该 folder 通过验证，
-// 或 folder 为空但 space 内有 cwd 精确相等的 pane（且该 cwd 通过验证）。
-// 不做父目录 / project root / 编码目录名匹配。多个候选按 space id 确定性排序。
+// 或 space 内存在 cwd 精确相等的 pane（且该 cwd 通过验证）。
+// pane 命中不要求 space.folder 为空：旧版本可能先建 space 后把 folder
+// 改到别处，但已有终端仍在目标目录里，此时复用该 space 才不会重复新建。
+// 不做父目录 / project root / 编码目录名匹配。多个候选按 rank、space id 确定性排序。
 export function findDirectorySpaceMatches(allSpaces, allPanes, _allTerminals = [], cwd, {
   folderExists = null,
 } = {}) {
@@ -42,7 +48,7 @@ export function findDirectorySpaceMatches(allSpaces, allPanes, _allTerminals = [
     const folder = keyOf(space.folder);
     if (!folder || folder === NO_CWD_KEY || folder !== target) continue;
     if (!exists(space.folder)) continue;
-    matches.set(String(space.id ?? space.name), { space, folder: space.folder });
+    matches.set(String(space.id ?? space.name), { space, folder: space.folder, rank: 0 });
   }
 
   const tabSpaces = new Map();
@@ -56,12 +62,12 @@ export function findDirectorySpaceMatches(allSpaces, allPanes, _allTerminals = [
     const paneCwd = keyOf(pane.cwd);
     if (paneCwd !== target) continue;
     const space = tabSpaces.get(String(pane.tab));
-    // space.folder 非空时以 folder 为准，只有空 folder 的 space 才用 pane cwd 判定。
-    const spaceFolder = keyOf(space?.folder);
-    if (!space || (spaceFolder && spaceFolder !== NO_CWD_KEY)) continue;
+    if (!space) continue;
+    // space.folder 可能已过期或被改到别处；只要还有终端精确落在目标目录，
+    // 就复用这个 space，避免同名目录重复新建 space。
     if (!exists(pane.cwd)) continue;
     const id = String(space.id ?? space.name);
-    if (!matches.has(id)) matches.set(id, { space, folder: pane.cwd });
+    if (!matches.has(id)) matches.set(id, { space, folder: pane.cwd, rank: 1 });
   }
 
   return sortSpaceMatches([...matches.values()]);
@@ -177,7 +183,6 @@ export function previewAvailability(session) {
 
 // 直接 tab 恢复：目录由 tab.new 的 folder 决定，命令本身不再 cd。
 // Codex 只有在原目录恢复时才带 -C；fallback/override 依赖 tab 的 folder。
-// Hermes 在 fallback/override 时禁用会话记录里的 cwd 恢复。
 export function resumeCommand(kind, { bin, cwd, sessionId, mode = "original" } = {}) {
   if (!bin || !sessionId) throw new Error("resumeCommand needs bin and sessionId");
   if (kind === "codex") {
@@ -189,10 +194,6 @@ export function resumeCommand(kind, { bin, cwd, sessionId, mode = "original" } =
   }
   if (kind === "claude") {
     return `${shellQuote(bin)} --resume ${shellQuote(sessionId)}`;
-  }
-  if (kind === "hermes") {
-    const restore = mode === "original" ? [] : ["--no-restore-cwd"];
-    return [shellQuote(bin), ...restore, "--resume", shellQuote(sessionId)].join(" ");
   }
   throw new Error(`Unknown agent: ${kind}`);
 }
@@ -207,10 +208,6 @@ export function resumeArgv(kind, { bin, cwd, sessionId, mode = "original" } = {}
     return args;
   }
   if (kind === "claude") return [bin, "--resume", sessionId];
-  if (kind === "hermes") {
-    const restore = mode === "original" ? [] : ["--no-restore-cwd"];
-    return [bin, ...restore, "--resume", sessionId];
-  }
   throw new Error(`Unknown agent: ${kind}`);
 }
 

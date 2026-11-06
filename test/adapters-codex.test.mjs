@@ -137,3 +137,33 @@ test("reads a local rollout preview without starting Codex", async () => {
   assert.equal(preview.path, path);
   assert.deepEqual(preview.messages.map((message) => message.text), ["Hello", "Hi"]);
 });
+
+test("keeps the reported rollout path and only enables preview for local files", async () => {
+  const key = "FAKE_CODEX_MODE";
+  const previous = process.env[key];
+  process.env[key] = "paths";
+  try {
+    const { codexHome, wrapper } = await workspace();
+    const directory = join(codexHome, "project", "sessions");
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(directory, "rollout-local.jsonl"), "{" + "}\n");
+    await writeFile(join(directory, "rollout-compressed.jsonl.zst"), "not read by this test");
+
+    const result = await readCodexSessions({ codexHome, codex: wrapper, timeoutMs: 5_000 });
+    const byId = Object.fromEntries(result.sessions.map((session) => [session.id, session]));
+    assert.equal(byId.local.path, join(directory, "rollout-local.jsonl"));
+    assert.equal(byId.local.capabilities.preview, true);
+    assert.equal(byId.compressed.capabilities.preview, true);
+    assert.equal(byId.cloud.path, null);
+    assert.equal(byId.cloud.capabilities.preview, false);
+  } finally {
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
+  }
+});
+
+test("threadToSession preserves only a non-empty rollout path", () => {
+  assert.equal(threadToSession({ id: "t", path: " /tmp/rollout.jsonl " }).path, "/tmp/rollout.jsonl");
+  assert.equal(threadToSession({ id: "t", path: "   " }).path, null);
+  assert.equal(threadToSession({ id: "t" }).path, null);
+});

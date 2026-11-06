@@ -11,12 +11,10 @@ test("switching agents shows only that agent's directories and sessions", () => 
     agents: {
       claude: { sessions: [{ id: "c1", cwd: "/shared" }, { id: "c2", cwd: "/claude-only" }] },
       codex: { sessions: [{ id: "x1", cwd: "/shared" }] },
-      hermes: { sessions: [{ id: "h1", cwd: "/hermes-only" }] },
     },
   });
   assert.deepEqual(data.agents.claude.directories.map((group) => group.key).sort(), ["/claude-only", "/shared"]);
   assert.deepEqual(data.agents.codex.directories.map((group) => group.key), ["/shared"]);
-  assert.deepEqual(data.agents.hermes.directories.map((group) => group.key), ["/hermes-only"]);
   assert.ok(data.agents.claude.sessions.every((session) => session.agent === "claude"));
   assert.ok(data.agents.codex.sessions.every((session) => session.agent === "codex"));
 });
@@ -26,7 +24,6 @@ test("an agent with zero sessions does not borrow another agent's directories", 
     agents: {
       claude: { sessions: [{ id: "c1", cwd: "/claude" }] },
       codex: { sessions: [] },
-      hermes: { sessions: [] },
     },
   }, { selectedAgent: "codex" });
   assert.equal(data.selectedAgent, "codex");
@@ -146,7 +143,6 @@ test("unavailable agent stays selected in the menu but cannot be shown as mixed 
     agents: {
       claude: { sessions: [] },
       codex: { available: false, reason: "Codex data directory not found", sessions: [] },
-      hermes: { sessions: [] },
     },
   }, { selectedAgent: "codex" });
   assert.equal(data.selectedAgent, "claude");
@@ -173,14 +169,13 @@ test("each agent view reports independent availability and stale warnings", () =
   const data = normalizeAgentHistory({
     agents: Object.fromEntries(AGENTS.map((agent) => [agent, {
       sessions: [{ id: `${agent}-1`, cwd: `/tmp/${agent}` }],
-      stale: agent === "hermes",
-      warnings: agent === "hermes" ? ["Hermes database is locked"] : [],
+      stale: agent === "claude",
+      warnings: agent === "claude" ? ["Claude sync failed"] : [],
       available: agent !== "codex",
       reason: agent === "codex" ? "Codex data directory not found" : null,
     }])),
   });
-  assert.equal(data.agents.claude.sync.status, "ready");
-  assert.equal(data.agents.hermes.sync.status, "stale");
+  assert.equal(data.agents.claude.sync.status, "stale");
   assert.equal(data.agents.codex.available, false);
-  assert.deepEqual(data.staleAgents, ["hermes"]);
+  assert.deepEqual(data.staleAgents, ["claude"]);
 });

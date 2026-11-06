@@ -39,6 +39,7 @@ import {
   applySessionCwdOverrides,
   badgeColor,
   computeFallbackDefault,
+  directoryElementId,
   displayNameForFallback,
   liveLabel,
   normalizeAgentHistory,
@@ -1488,7 +1489,7 @@ export default class AgentHistory extends View {
       : group.key !== NO_CWD_KEY && group.missing
         ? "missing"
         : null;
-    return h_flex().id(stableElementId("dir", group.key)).w_full().min_w(0).h(34).px(10).gap(6).items_center().rounded(6)
+    return h_flex().id(directoryElementId(group.agent, group.key)).w_full().min_w(0).h(34).px(10).gap(6).items_center().rounded(6)
       .bg(active ? t.selected : t.background).text_color(active ? t.foreground : t.muted)
       .hover((style) => style.bg(t.hover).text_color(t.foreground))
       .tooltip(group.cwd || "No directory")

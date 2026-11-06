@@ -5,46 +5,21 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { DatabaseSync } from "node:sqlite";
 import { cachePath } from "../mods/herdr-codex-sidebar-mod/helper/lib/cache.mjs";
 
 const repo = fileURLToPath(new URL("..", import.meta.url));
 const helper = join(repo, "mods", "herdr-codex-sidebar-mod", "helper", "codex-history.mjs");
 const fakeServer = join(repo, "fixtures", "fake-codex-app-server.mjs");
 
-async function createHermesDb(hermesHome, sessions = []) {
-  await mkdir(hermesHome, { recursive: true });
-  const db = new DatabaseSync(join(hermesHome, "state.db"));
-  db.exec(`
-    CREATE TABLE sessions (
-      id TEXT PRIMARY KEY, cwd TEXT, title TEXT, hidden INTEGER DEFAULT 0,
-      archived INTEGER DEFAULT 0, parent_session_id TEXT,
-      started_at INTEGER, last_activity_at INTEGER, ended_at INTEGER, lineage_id TEXT
-    );
-    CREATE TABLE messages (id TEXT, session_id TEXT, role TEXT, content TEXT, timestamp INTEGER);
-  `);
-  const insert = db.prepare(`
-    INSERT INTO sessions (id, cwd, title, hidden, archived, parent_session_id, started_at, last_activity_at, ended_at, lineage_id)
-    VALUES (?, ?, ?, 0, 0, NULL, ?, ?, NULL, NULL)
-  `);
-  for (const session of sessions) {
-    insert.run(session.id, session.cwd ?? null, session.title ?? null, session.started_at ?? 1, session.last_activity_at ?? 2);
-  }
-  db.close();
-}
-
 async function temporaryWorkspace({
   withClaude = true,
   withCodex = true,
-  withHermes = true,
-  hermesSessions = [{ id: "h1", cwd: "/tmp/hermes-project", title: "Hermes chat" }],
 } = {}) {
   const root = await mkdtemp(join(tmpdir(), "agent-history-helper-"));
   const project = join(root, "project");
   await mkdir(project, { recursive: true });
   const codexHome = join(root, "codex");
   const claudeHome = join(root, "claude");
-  const hermesHome = join(root, "hermes");
   const cache = join(root, "cache", "history.json");
   const requests = join(root, "requests.jsonl");
   const wrapper = join(root, "fake-codex");
@@ -59,16 +34,13 @@ async function temporaryWorkspace({
       JSON.stringify({ type: "assistant", sessionId: "claude-1", cwd: project, message: { role: "assistant", content: "Claude answer" }, timestamp: "2026-11-04T10:00:02Z" }),
     ].join("\n"));
   }
-  if (withHermes) {
-    await createHermesDb(hermesHome, hermesSessions.map((session) => ({ ...session, cwd: project })));
-  }
   await writeFile(
     wrapper,
     `#!/bin/sh\nexport FAKE_CODEX_REQUESTS='${requests}'\nexec '${process.execPath}' '${fakeServer}' "$@"\n`,
     { mode: 0o755 },
   );
   await chmod(wrapper, 0o755);
-  return { root, project, codexHome, claudeHome, hermesHome, cache, requests, wrapper };
+  return { root, project, codexHome, claudeHome, cache, requests, wrapper };
 }
 
 function runHelper(args, {
@@ -81,7 +53,6 @@ function runHelper(args, {
         ...process.env,
         CODEX_HOME: workspace.codexHome,
         CLAUDE_HOME: workspace.claudeHome,
-        HERMES_HOME: workspace.hermesHome,
         CODEX_BIN: workspace.wrapper,
         ...env,
       },
@@ -110,19 +81,18 @@ test("cache default path is the v0.2 history.json location", () => {
   assert.equal(cachePath({ home: "/Users/me", appHome: null, env: { AGENT_HISTORY_CACHE: "/tmp/x.json" } }), "/tmp/x.json");
 });
 
-test("sync returns all three agents in schema 2 with cwd directories", async () => {
+test("sync returns both agents in schema 2 with cwd directories", async () => {
   const workspace = await temporaryWorkspace();
   const value = await sync(workspace);
   assert.equal(value.schemaVersion, 2);
   assert.ok(value.syncedAt > 0);
-  for (const agent of ["claude", "codex", "hermes"]) {
+  for (const agent of ["claude", "codex"]) {
     assert.equal(value.agents[agent].available, true, agent);
     assert.ok(value.agents[agent].sessions.length >= 1, agent);
     assert.ok(value.directories.some((directory) => directory.agent === agent), agent);
   }
   assert.equal(value.agents.claude.sessions[0].id, "claude-1");
   assert.equal(value.agents.claude.sessions[0].title, "Claude chat");
-  assert.equal(value.agents.hermes.sessions[0].id, "h1");
   assert.ok(value.agents.codex.sessions.some((session) => session.id === "t1"));
   assert.ok(Array.isArray(value.agentStatus.claude.warnings));
 
@@ -155,11 +125,10 @@ test("a failed adapter keeps its previous cache and marks it stale", async () =>
   assert.ok(second.agents.codex.sessions.length > 0);
   assert.ok(second.warnings.some((warning) => /Codex sync failed/.test(warning)));
   assert.equal(second.agents.claude.stale, false);
-  assert.equal(second.agents.hermes.stale, false);
 });
 
 test("a failed first sync returns a readable schema 2 result", async () => {
-  const workspace = await temporaryWorkspace({ withClaude: false, withCodex: false, withHermes: false });
+  const workspace = await temporaryWorkspace({ withClaude: false, withCodex: false });
   await mkdir(workspace.codexHome, { recursive: true });
   const result = await runHelper(["sync", "--json", "--cache", workspace.cache], {
     workspace,
@@ -171,22 +140,20 @@ test("a failed first sync returns a readable schema 2 result", async () => {
   assert.deepEqual(value.sessions, []);
   assert.ok(value.warnings.some((warning) => /Codex sync failed/.test(warning)));
   assert.equal(value.agents.claude.available, false);
-  assert.equal(value.agents.hermes.available, false);
 });
 
 test("all empty data roots produce empty directories without a fatal error", async () => {
-  const workspace = await temporaryWorkspace({ withClaude: false, withCodex: false, withHermes: false });
+  const workspace = await temporaryWorkspace({ withClaude: false, withCodex: false });
   const value = await sync(workspace);
   assert.equal(value.schemaVersion, 2);
   assert.deepEqual(value.directories, []);
   assert.deepEqual(value.sessions, []);
   assert.equal(value.agents.claude.available, false);
   assert.equal(value.agents.codex.available, false);
-  assert.equal(value.agents.hermes.available, false);
 });
 
 test("status and reconcile are cache-only and tolerate corrupt or old schema", async () => {
-  const workspace = await temporaryWorkspace({ withClaude: false, withCodex: false, withHermes: false });
+  const workspace = await temporaryWorkspace({ withClaude: false, withCodex: false });
   await mkdir(join(workspace.root, "cache"), { recursive: true });
   await writeFile(workspace.cache, "{ not json");
   const status = await runHelper(["status", "--json", "--cache", workspace.cache], { workspace });
@@ -222,7 +189,7 @@ test("concurrent syncs leave a consistent cache", async () => {
   assert.ok(value.agents.codex.sessions.length > 0);
 });
 
-test("previews all three agents without launching them", async () => {
+test("previews both agents without launching them", async () => {
   const workspace = await temporaryWorkspace();
   // Codex rollout for preview.
   const directory = join(workspace.codexHome, "sessions", "2026", "11", "04");
@@ -231,12 +198,6 @@ test("previews all three agents without launching them", async () => {
     type: "response_item",
     payload: { type: "message", role: "user", content: [{ type: "input_text", text: "Codex preview text" }] },
   })}\n`);
-  // Hermes message for preview.
-  const db = new DatabaseSync(join(workspace.hermesHome, "state.db"));
-  db.prepare("INSERT INTO messages (id, session_id, role, content, timestamp) VALUES (?, ?, ?, ?, ?)")
-    .run("m1", "h1", "user", "Hermes preview text", 1);
-  db.close();
-
   const claude = await runHelper(["preview", "--agent", "claude", "--session", "claude-1"], { workspace });
   assert.equal(claude.code, 0, claude.stderr);
   assert.match(claude.stdout, /Claude history: Claude chat/);
@@ -246,11 +207,6 @@ test("previews all three agents without launching them", async () => {
   assert.equal(codex.code, 0, codex.stderr);
   assert.match(codex.stdout, /Codex history/);
   assert.match(codex.stdout, /Codex preview text/);
-
-  const hermes = await runHelper(["preview", "--agent", "hermes", "--session", "h1"], { workspace });
-  assert.equal(hermes.code, 0, hermes.stderr);
-  assert.match(hermes.stdout, /Hermes history/);
-  assert.match(hermes.stdout, /Hermes preview text/);
 });
 
 test("unknown preview agent fails with a readable message", async () => {

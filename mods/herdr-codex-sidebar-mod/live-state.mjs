@@ -1,6 +1,6 @@
 import { normalizeCwdLiteral } from "./view-model.mjs";
 
-const AGENT_NAMES = ["claude", "codex", "hermes"];
+const AGENT_NAMES = ["claude", "codex"];
 
 export function agentKindOf(agentOrKind) {
   if (typeof agentOrKind === "string") {
@@ -8,7 +8,6 @@ export function agentKindOf(agentOrKind) {
     if (AGENT_NAMES.includes(value)) return value;
     if (value.includes("claude")) return "claude";
     if (value.includes("codex")) return "codex";
-    if (value.includes("hermes")) return "hermes";
     return null;
   }
   const value = String(
@@ -21,7 +20,6 @@ export function agentKindOf(agentOrKind) {
   if (!value) return null;
   if (value.includes("claude")) return "claude";
   if (value.includes("codex") || value.includes("openai")) return "codex";
-  if (value.includes("hermes")) return "hermes";
   return null;
 }
 
@@ -38,12 +36,10 @@ export function isAgentCommand(command, kind = null) {
   if (kind) {
     const pattern = kind === "codex"
       ? /(?:^|\/)codex(?:\.exe)?$/i
-      : kind === "claude"
-        ? /(?:^|\/)claude(?:\.exe)?$/i
-        : /(?:^|\/)hermes(?:\.exe|\.py)?$/i;
+      : /(?:^|\/)claude(?:\.exe)?$/i;
     return pattern.test(String(command ?? ""));
   }
-  return /(?:^|\/)(?:claude|codex|hermes)(?:\.exe|\.py)?$/i.test(String(command ?? ""));
+  return /(?:^|\/)(?:claude|codex)(?:\.exe)?$/i.test(String(command ?? ""));
 }
 
 // 兼容旧 API 名称。
@@ -228,7 +224,7 @@ export function matchLiveSession(live, sessions, { kind = null, cwdForSession = 
   const titles = titleCandidates(live, available, cwdForSession);
   const titleMatch = titles.length === 1 ? titles[0] : null;
   const currentTitle = titleKey(live?.agent?.title);
-  const genericNames = ["claude", "claude code", "codex", "codex cli", "openai codex", "hermes", "hermes agent"];
+  const genericNames = ["claude", "claude code", "codex", "codex cli", "openai codex"];
   const genericTitle = !currentTitle || genericNames.includes(currentTitle);
   const labeled = labelId
     ? available.find((session) => String(session.id) === String(labelId))

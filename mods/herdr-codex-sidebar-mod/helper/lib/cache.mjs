@@ -19,7 +19,6 @@ export function emptyHistory({ syncedAt = 0, warning = null } = {}) {
     agents: {
       claude: { available: false, stale: false, warnings: [], sessions: [] },
       codex: { available: false, stale: false, warnings: [], sessions: [] },
-      hermes: { available: false, stale: false, warnings: [], sessions: [] },
     },
     directories: [],
     sessions: [],

@@ -2,15 +2,15 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A Herdr mod for browsing, previewing and resuming Claude Code, Codex and
-Hermes history by agent and by real working directory. The sidebar shows one
+A Herdr mod for browsing, previewing and resuming Claude Code and Codex
+history by agent and by real working directory. The sidebar shows one
 agent at a time, chosen from the switcher in the top-right corner. Within an
-agent, sessions are grouped by their exact `cwd`; Codex projects/assignments,
-Claude encoded directory names and Hermes projects.db are not used.
+agent, sessions are grouped by their exact `cwd`; Codex project/assignment metadata and
+Claude encoded directory names are not used.
 
 ## Usage
 
-- Agent switcher: Claude / Codex / Hermes, one at a time. There is no All view.
+- Agent switcher: Claude / Codex, one at a time. There is no All view.
 - Single-click a chat: open its titled tab and print a read-only history preview
   without starting any agent.
 - Double-click a chat: resume that exact session in the correct cwd.
@@ -23,7 +23,7 @@ Claude encoded directory names and Hermes projects.db are not used.
 ## Installation
 
 Requirements: Node.js 20+, Herdr App, and at least one installed agent
-(Claude Code / Codex / Hermes).
+(Claude Code / Codex).
 
 ```sh
 git clone git@github.com:naFeKnehC/herdr-codex-sidebar-mod.git

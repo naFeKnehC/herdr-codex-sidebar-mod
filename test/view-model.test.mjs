@@ -6,6 +6,7 @@ import {
   applySessionCwdOverrides,
   badgeColor,
   computeFallbackDefault,
+  directoryElementId,
   displayNameForFallback,
   liveLabel,
   normalizeAgentHistory,
@@ -34,12 +35,11 @@ function viewsFor(availability) {
   ]));
 }
 
-test("keeps three agents in separate views even when they share one cwd", () => {
+test("keeps both agents in separate views even when they share one cwd", () => {
   const data = normalizeAgentHistory({
     agents: {
       claude: { sessions: sessions("claude", "/tmp/shared") },
       codex: { sessions: sessions("codex", "/tmp/shared") },
-      hermes: { sessions: sessions("hermes", "/tmp/shared") },
     },
   });
   for (const agent of AGENTS) {
@@ -52,12 +52,12 @@ test("keeps three agents in separate views even when they share one cwd", () => 
   assert.equal(data.selectedAgent, "claude");
 });
 
-test("restores the saved agent and falls back Claude -> Codex -> Hermes", () => {
+test("restores the saved agent and falls back Claude -> Codex", () => {
   const all = viewsFor({});
   assert.deepEqual(resolveAgentSelection(all, "codex"), { agent: "codex", changed: false });
   assert.deepEqual(resolveAgentSelection(viewsFor({ claude: false }), "claude"), { agent: "codex", changed: true });
-  assert.deepEqual(resolveAgentSelection(viewsFor({ claude: false, codex: false }), null), { agent: "hermes", changed: true });
-  assert.deepEqual(resolveAgentSelection(viewsFor({ claude: false, codex: false, hermes: false }), "codex"), { agent: "codex", changed: false });
+  assert.deepEqual(resolveAgentSelection(viewsFor({ claude: false, codex: false }), null), { agent: "claude", changed: true });
+  assert.deepEqual(resolveAgentSelection(viewsFor({ claude: false, codex: false }), "codex"), { agent: "codex", changed: false });
 });
 
 test("directory selection falls back only when a real directory list exists", () => {
@@ -90,7 +90,7 @@ test("each agent keeps independent directory and page selection", () => {
 
 test("an empty sync does not forget the saved directory", () => {
   const data = normalizeAgentHistory({
-    agents: { claude: { sessions: [] }, codex: { sessions: [] }, hermes: { sessions: [] } },
+    agents: { claude: { sessions: [] }, codex: { sessions: [] } },
   }, {
     selectedAgent: "claude",
     savedDirectories: { claude: "/saved/dir" },
@@ -114,14 +114,12 @@ test("stale sync state is exposed per agent without dropping its sessions", () =
   const data = normalizeAgentHistory({
     agents: {
       claude: { sessions: [{ id: "old", cwd: "/a" }], stale: true, warnings: ["Claude sync failed"] },
-      codex: { sessions: [{ id: "new", cwd: "/b" }] },
-      hermes: { available: false, reason: "Hermes state.db not found", sessions: [] },
+      codex: { available: false, reason: "Codex data directory not found", sessions: [] },
     },
   });
   assert.equal(data.agents.claude.counts.total, 1);
   assert.equal(data.agents.claude.sync.stale, true);
-  assert.equal(data.agents.codex.sync.stale, false);
-  assert.equal(data.agents.hermes.available, false);
+  assert.equal(data.agents.codex.available, false);
   assert.deepEqual(data.staleAgents, ["claude"]);
   assert.ok(data.warnings.includes("Claude sync failed"));
 });
@@ -176,7 +174,6 @@ test("new space and tab names follow the documented rules", () => {
   assert.equal(spaceNameForCwd(null, "Claude"), "Claude");
   assert.equal(tabTitleForSession({ agent: "claude", title: "Chat" }), "Chat");
   assert.equal(tabTitleForSession({ agent: "codex", title: "Untitled chat" }), "Codex Untitled");
-  assert.equal(tabTitleForSession({ agent: "hermes", title: "" }), "Hermes Untitled");
 });
 
 const cwdInfo = (cwd, status = "ok", { exists = status !== "missing-directory", accessible = status === "ok" } = {}) => ({
@@ -236,7 +233,7 @@ test("falls back to the most frequent directory when a common parent is the root
 
 test("suggests a missing directory but marks it invalid", () => {
   const info = computeFallbackDefault({
-    hermes: {
+    codex: {
       sessions: [
         sessionAt("gone", "/old/gone", 2, "missing-directory"),
         sessionAt("gone2", "/old/gone", 1, "missing-directory"),
@@ -349,6 +346,13 @@ test("explicit directory overrides regroup sessions without touching originals",
 test("displayNameForFallback returns a short badge name", () => {
   assert.equal(displayNameForFallback("/Users/me/project"), "project");
   assert.equal(displayNameForFallback(null), "No directory");
+});
+
+test("keeps directory element ids distinct across agents that share a cwd", () => {
+  const shared = "/Users/me/project";
+  assert.equal(directoryElementId("claude", shared), directoryElementId("claude", shared));
+  assert.notEqual(directoryElementId("claude", shared), directoryElementId("codex", shared));
+  assert.notEqual(directoryElementId("codex", shared), directoryElementId("codex", "/Users/me/other"));
 });
 
 test("paginates long lists and clamps out-of-range pages", () => {

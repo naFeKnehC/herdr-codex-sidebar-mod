@@ -14,26 +14,25 @@ import {
   sessionIdentity,
 } from "../mods/herdr-codex-sidebar-mod/live-state.mjs";
 
-test("recognizes Claude, Codex and Hermes agents and commands", () => {
+test("recognizes Claude and Codex agents and commands", () => {
   assert.equal(agentKindOf({ app: "claude" }), "claude");
   assert.equal(agentKindOf({ app: "claude-code" }), "claude");
   assert.equal(agentKindOf({ program: { key: "codex" } }), "codex");
-  assert.equal(agentKindOf({ program: { key: "hermes" } }), "hermes");
+  // Hermes 支持已移除，旧数据中的 hermes 不能再被识别。
+  assert.equal(agentKindOf({ program: { key: "hermes" } }), null);
   assert.equal(agentKindOf("Claude"), "claude");
   assert.equal(agentKindOf({ app: "shell" }), null);
   assert.equal(isAgent({ app: "codex" }, "codex"), true);
   assert.equal(isAgent({ app: "codex" }, "claude"), false);
   assert.equal(isAgentCommand("/opt/homebrew/bin/codex", "codex"), true);
   assert.equal(isAgentCommand("/opt/bin/claude", "claude"), true);
-  assert.equal(isAgentCommand("hermes", "hermes"), true);
+  assert.equal(isAgentCommand("hermes", "hermes"), false);
   assert.equal(isAgentCommand("zsh"), false);
 });
 
 test("only working or blocked agents count as active", () => {
   assert.equal(isActiveAgent({ app: "codex", status: "working" }), true);
   assert.equal(isActiveAgent({ app: "claude", status: "blocked" }), true);
-  assert.equal(isActiveAgent({ app: "hermes", status: "idle" }), false);
-  assert.equal(isActiveAgent({ app: "hermes", status: "done" }), false);
   assert.equal(isActiveAgent({ app: "shell", status: "working" }), false);
 });
 
@@ -60,11 +59,11 @@ test("writes generic agent labels and clears legacy codex labels", () => {
 test("reads generic labels first and falls back to legacy codex labels", () => {
   assert.deepEqual(sessionIdentity({
     labels: {
-      "agent.kind": "hermes",
-      "agent.session.id": "h1",
-      "agent.cwd": "/tmp/h",
+      "agent.kind": "codex",
+      "agent.session.id": "x1",
+      "agent.cwd": "/tmp/x",
     },
-  }), { agent: "hermes", id: "h1", cwd: "/tmp/h" });
+  }), { agent: "codex", id: "x1", cwd: "/tmp/x" });
 
   assert.deepEqual(sessionIdentity({
     labels: { "codex.thread.id": "old", "codex.cwd": "/tmp/old" },
@@ -79,7 +78,6 @@ test("reads generic labels first and falls back to legacy codex labels", () => {
 
 test("parses resume ids for --resume and codex resume syntax", () => {
   assert.equal(resumedSessionId(["claude", "--resume", "c1"], "claude"), "c1");
-  assert.equal(resumedSessionId(["hermes", "--resume", "h1"], "hermes"), "h1");
   assert.equal(resumedSessionId(["codex", "--no-daemon", "-C", "/tmp", "resume", "x1"], "codex"), "x1");
   assert.equal(resumedSessionId(["zsh"], "codex"), null);
 });
@@ -151,14 +149,14 @@ test("does not match sessions from another agent even with the same id", () => {
 
 test("duplicate titles in the same cwd are ambiguous rather than guessed", () => {
   const live = {
-    agent: { app: "hermes", title: "Same" },
+    agent: { app: "codex", title: "Same" },
     pane: { cwd: "/tmp/project" },
   };
   const sessions = [
-    { agent: "hermes", id: "a", title: "Same", cwd: "/tmp/project" },
-    { agent: "hermes", id: "b", title: "Same", cwd: "/tmp/project" },
+    { agent: "codex", id: "a", title: "Same", cwd: "/tmp/project" },
+    { agent: "codex", id: "b", title: "Same", cwd: "/tmp/project" },
   ];
-  const result = matchLiveSession(live, sessions, { kind: "hermes" });
+  const result = matchLiveSession(live, sessions, { kind: "codex" });
   assert.equal(result.session, null);
   assert.equal(result.confidence, "ambiguous");
   assert.equal(result.candidates.length, 2);

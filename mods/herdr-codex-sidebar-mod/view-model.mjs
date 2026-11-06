@@ -1,12 +1,11 @@
-// 统一会话模型：Claude / Codex / Hermes 三个适配器都产出同一种 Session，
+// 统一会话模型：Claude / Codex 两个适配器都产出同一种 Session，
 // UI 一次只渲染一个 AgentView，每个 AgentView 内再按真实 cwd 精确分组。
 // 这个模块必须保持纯函数（不导入 node:fs / herdr），helper 与 UI 共用。
 
-export const AGENTS = ["claude", "codex", "hermes"];
+export const AGENTS = ["claude", "codex"];
 export const AGENT_NAMES = {
   claude: "Claude",
   codex: "Codex",
-  hermes: "Hermes",
 };
 export const NO_CWD_KEY = "__no_cwd__";
 export const NO_CWD_LABEL = "No directory";
@@ -100,7 +99,7 @@ export function spaceNameForCwd(cwd, fallback = "Agent") {
   return displayNameForCwd(text) || fallback;
 }
 
-// tab 标题：优先会话标题；确实没有标题时用 `Claude/Codex/Hermes Untitled`。
+// tab 标题：优先会话标题；确实没有标题时用 `Claude/Codex Untitled`。
 export function tabTitleForSession(session) {
   const title = clean(session?.title);
   if (!title || title === "Untitled chat") return `${agentName(session?.agent)} Untitled`;
@@ -453,7 +452,7 @@ export function computeFallbackDefault(views, { home } = {}) {
 }
 
 // 应用显式“移动到目录”的本地 override：只改变本 mod 的归组和后续 effectiveCwd，
-// 不写回 Claude / Codex / Hermes 的原始会话数据。
+// 不写回 Claude / Codex 的原始会话数据。
 export function applySessionCwdOverrides(view, overrides = {}, { agent = null } = {}) {
   const kind = agent || view?.agent;
   if (!view || !kind) return view;
@@ -662,4 +661,10 @@ export function stableElementId(prefix, value) {
     hash = Math.imul(hash, 16777619);
   }
   return `${prefix}-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+// 目录按钮的 id 必须带上 Agent：不同 Agent 可能有同一个 cwd，
+// 复用同一个 id 会让 Herdr 在切换 Agent 时复用错误的原生元素并中断重渲染。
+export function directoryElementId(agent, key) {
+  return stableElementId("dir", `${asText(agent)}:${asText(key)}`);
 }

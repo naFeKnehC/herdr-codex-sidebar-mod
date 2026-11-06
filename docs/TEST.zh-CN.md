@@ -8,7 +8,7 @@
 | 适用版本 | 0.2.x |
 | 配套文档 | [产品功能文档](PRODUCT.zh-CN.md) |
 
-> 本文定义**目标行为的验收矩阵**。当前仓库的 69 个测试只覆盖 Codex-only 版本；本文新增的 Claude/Hermes、cwd 分组、统一状态用例尚未实现，不能当作已通过。
+> 本文定义**目标行为的验收矩阵**。`自动` 用例应逐步进入 `npm test`；尚未落地的用例不能当作已通过。当前基线见 0.2。
 
 ---
 
@@ -29,16 +29,16 @@
 
 | 项目 | 现状 | 说明 |
 |---|---|---|
-| `npm test` | 69/69 通过 | Codex-only；不代表新方案已通过 |
+| `npm test` | 132/132 通过 | 覆盖两个适配器、cwd 分组、恢复命令、预览、缓存与 UI 纯函数 |
 | `herdr-app check` | 仓库与安装目录通过 | 安装/加载基线 |
-| cwd 分组 | 未实现 | 当前仍是 project/assignment 分组 |
-| Agent 切换 | 未实现 | 当前只有 Codex 视图，没有 Claude/Codex/Hermes 切换器 |
-| Claude 适配 | 未实现 | 目标新增 |
-| Hermes 适配 | 未实现 | 目标新增 |
-| 统一 `agent.*` 标签 | 未实现 | 当前使用 `codex.*` |
-| 真实 GUI 冒烟 | 未覆盖 | 发布前必须手工执行 |
+| cwd 分组 | 已实现 | 每个 Agent 内按真实 cwd 精确分组 |
+| Agent 切换 | 已实现 | Claude / Codex 二选一，没有 All |
+| Claude 适配 | 已实现 | JSONL + live 文件 |
+| Codex 适配 | 已实现 | app-server `thread/list` + rollout 预览（含 `.jsonl.zst`） |
+| 统一 `agent.*` 标签 | 已实现 | 兼容读取旧 `codex.*` |
+| 真实 GUI 冒烟 | 基础路径已覆盖 | 发布前仍需手工复核 |
 
-发布门槛：**P0 用例全部通过**；P1 允许有记录明确的非阻塞缺陷；真实冒烟至少覆盖三个 Agent 各一条。
+发布门槛：**P0 用例全部通过**；P1 允许有记录明确的非阻塞缺陷；真实冒烟至少覆盖两个 Agent 各一条。
 
 ### 0.3 判定原则
 
@@ -58,7 +58,7 @@
 | OS | macOS（主）、Linux（CI 可选） |
 | Node | 仓库声明的 LTS 版本 |
 | Herdr | 当前发布版；至少一个旧版做兼容 |
-| Agent 安装 | 三个全装、只装一个、全部未装、二进制存在但数据根不存在 |
+| Agent 安装 | 两个全装、只装一个、全部未装、二进制存在但数据根不存在 |
 | 数据根 | 默认根、临时隔离根、空根、只读根、损坏文件 |
 | cwd | 普通、深层、含空格/引号、中文、emoji、NFC/NFD、symlink、root、缺失、无权限 |
 | 会话类型 | 普通、archived、hidden、subagent、多实例、无 cwd |
@@ -69,12 +69,11 @@
 
 ### 0.5 测试隔离
 
-- 所有自动化使用临时目录，不读取真实 `~/.claude`、`~/.codex`、`~/.hermes`。
-- Codex：`CODEX_HOME=<tmp>/codex`；Claude：helper `--claude-home <tmp>/claude`（若测试版本支持 `CLAUDE_CONFIG_DIR`，可额外覆盖）；Hermes：`HERMES_HOME=<tmp>/hermes`，版本不支持时用 helper `--hermes-home`。
+- 所有自动化使用临时目录，不读取真实 `~/.claude`、`~/.codex`。
+- Codex：`CODEX_HOME=<tmp>/codex`；Claude：helper `--claude-home <tmp>/claude`（若测试版本支持 `CLAUDE_CONFIG_DIR`，可额外覆盖）。
 - Herdr 状态、缓存目录、日志目录同样指向临时路径。
 - Claude fixture：合成 `projects/<encoded>/<id>.jsonl`，包含 `sessionId`、`cwd`、`custom-title`/`ai-title`、user/assistant 行；子代理放 `<id>/subagents/`。
 - Codex fixture：fake app-server 返回 `thread/list`；不依赖真实 Codex 登录。
-- Hermes fixture：临时 `state.db`，建 `sessions`/`messages` 表；只读打开。
 - 每个用例结束删除临时目录；失败时保留到 `/tmp/agent-history-test-<id>/` 便于排查。
 
 ### 0.6 目标测试文件映射
@@ -84,11 +83,10 @@
 | `test/normalize.test.mjs` | cwd 规范化、目录分组、去重、排序、过滤 |
 | `test/view-model.test.mjs` | 目录/会话视图、Agent 切换、分页、切换器/目录计数、状态标签 |
 | `test/live-state.test.mjs` | Agent 类型识别、标签优先级、匹配置信度 |
-| `test/launch-target.test.mjs` | cwd 校验、space 选择、三 Agent 恢复命令、shell 引用 |
+| `test/launch-target.test.mjs` | cwd 校验、space 选择、两 Agent 恢复命令、shell 引用 |
 | `test/helper.test.mjs` | sync/preview/status、缓存、部分失败 |
 | `test/adapters-claude.test.mjs` | Claude JSONL、标题、live 文件 |
 | `test/adapters-codex.test.mjs` | Codex app-server、转写、过滤 |
-| `test/adapters-hermes.test.mjs` | Hermes SQLite、消息、状态 |
 | `test/directory-view.test.mjs` | 目录/Agent 视图/切换的纯函数 |
 | `test/contract.test.mjs` | 统一 Session/DirectoryGroup schema |
 | `test/install.test.mjs` | 安装、必需文件、可执行权限、无开发者绝对路径 |
@@ -107,7 +105,6 @@ herdr-app check --install
 
 ```sh
 CODEX_HOME=/tmp/ah-codex \
-HERMES_HOME=/tmp/ah-hermes \
 node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
   --json --cache /tmp/ah-cache/history.json --claude-home /tmp/ah-claude
 ```
@@ -116,7 +113,7 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 | 用例 | 环境 | 结果 | 证据 | 备注 |
 |---|---|---|---|---|
-| DIR-01 | macOS / Node x | PASS | helper JSON + 截图 | 三 Agent 同 cwd，切换后各自独立 |
+| DIR-01 | macOS / Node x | PASS | helper JSON + 截图 | 两 Agent 同 cwd，切换后各自独立 |
 
 ---
 
@@ -128,8 +125,8 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 | INST-02 | 手工 | 从安装目录加载，执行 `herdr-app check` | 通过；helper 路径正确 |
 | INST-03 | 自动 | 删除/破坏 `mod.json` | 加载失败有明确错误；不崩溃 |
 | INST-04 | 自动 | 检查面板标题 | 显示 `Agent History`，不再显示 `codex desktop` |
-| INST-05 | 自动 | 三个数据根都不存在 | 面板空状态 + 切换器三个选项不可用及原因；不报致命错误 |
-| INST-06 | 自动 | 数据存在但三个二进制都不存在 | 历史可见；恢复按钮禁用并说明原因 |
+| INST-05 | 自动 | 两个数据根都不存在 | 面板空状态 + 切换器两个选项不可用及原因；不报致命错误 |
+| INST-06 | 自动 | 数据存在但两个二进制都不存在 | 历史可见；恢复按钮禁用并说明原因 |
 | INST-07 | 自动 | helper 文件缺失/不可执行 | UI 显示错误与重试；不静默空列表 |
 | INST-08 | 手工 | 修改源码后热重载 | 新代码生效；不重复面板/不丢选择 |
 | INST-09 | 自动 | 仓库复制到其他路径后安装 | 不依赖开发者绝对路径 |
@@ -141,19 +138,16 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
-| SYNC-01 | 自动 | 三套 fixture 各 2 条会话，执行 sync | 返回三个 Agent 的 Session；目录正确 |
-| SYNC-02 | 自动 | Claude 适配器抛错，Codex/Hermes 正常 | 返回 Codex/Hermes；Claude warning；不整体失败 |
+| SYNC-01 | 自动 | 两套 fixture 各 2 条会话，执行 sync | 返回两个 Agent 的 Session；目录正确 |
 | SYNC-03 | 自动 | Claude 适配器超时 | 在超时上限内返回；Claude 标记 stale；其他正常 |
 | SYNC-04 | 自动 | 连续两次 sync | 缓存 schemaVersion=2；内容为最新；无重复会话 |
 | SYNC-05 | 自动 | 模拟写入中断 | 旧缓存仍可读；新缓存不半写 |
 | SYNC-06 | 自动 | 缓存 JSON 损坏/schema=1 | 视为无缓存并重建；不崩溃 |
 | SYNC-07 | 自动 | 并发触发两次 sync | 不产生交叉写；最终缓存一致 |
-| SYNC-08 | 自动 | 三个数据根都为空 | 返回空 directories；无错误；下次可刷新 |
+| SYNC-08 | 自动 | 两个数据根都为空 | 返回空 directories；无错误；下次可刷新 |
 | SYNC-09 | 自动 | 第一次成功，第二次 Claude 失败 | Claude 保留旧数据 + stale；其他更新 |
 | SYNC-10 | 自动 | 执行 status/reconcile | 状态与缓存、Herdr 事实一致；不重复启动 |
-| SYNC-11 | 自动 | 使用临时 `CODEX_HOME`/`HERMES_HOME`/`--claude-home` | 只读临时数据，不读真实 home |
 | SYNC-12 | 自动 | mock Codex app-server | 只调用 `thread/list`；不调用 `project/list` |
-| SYNC-13 | 自动 | Claude/Hermes sync | 不启动 Codex app-server；不读无关数据库 |
 | SYNC-14 | 自动 | 两个适配器返回相同 warning | warning 去重；顺序稳定 |
 | SYNC-15 | 自动 | 检查缓存文件权限 | 0600；不包含 transcript 全文 |
 | SYNC-16 | 自动 | 1000 条会话 | 同步在可接受时间内完成；无 O(n²) 卡死 |
@@ -164,7 +158,6 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
-| DIR-01 | 自动 | Claude/Codex/Hermes 各一条，cwd 都是 `/tmp/a` | 三个 AgentView 各自只有一个 `/tmp/a`；切换后每次只显示一条；不混排；切换器计数各为 1 |
 | DIR-02 | 自动 | `/work/app` 与 `/tmp/app` | 两个目录组；不按 basename 合并；显示最短可区分后缀（如 `work/app`、`tmp/app`），不常驻完整路径 |
 | DIR-03 | 自动 | cwd 带尾部 `/` 与不带 | 同一目录组 |
 | DIR-04 | 自动 | cwd 含重复 `/` | 规范化后同一组 |
@@ -181,7 +174,6 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 | DIR-15 | 自动 | 会话 cwd 是 `/a/b/c`，另有 `/a/b` | 两个目录；不做父目录汇总 |
 | DIR-16 | 自动 | Codex thread 有 projectId/roots，cwd 为空 | 不按 project 归组；进 No directory |
 | DIR-17 | 自动 | archived 会话 | 默认不进入目录/计数 |
-| DIR-18 | 自动 | Hermes hidden/子会话 | 默认不进入目录/计数 |
 | DIR-19 | 自动 | Claude subagent | 默认不进入目录；不单独建组 |
 | DIR-20 | 自动 | 多目录最近活动不同 | 目录按 lastActivityAt 倒序；No directory 最后 |
 | DIR-21 | 自动 | 无 cwd 会话与有 cwd 会话 | No directory 固定最后；不可恢复 |
@@ -249,38 +241,13 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 6. Hermes 适配（ADPT-HERMES）
-
-| ID | 类型 | 前置/步骤 | 期望 |
-|---|---|---|---|
-| HE-01 | 自动 | state.db 有 sessions 行 | 发现会话；id/cwd/title 正确 |
-| HE-02 | 自动 | `hidden=1` | 默认过滤，不进入目录 |
-| HE-03 | 自动 | archived 标记 | 默认过滤 |
-| HE-04 | 自动 | `parent_session_id` 非空 | 视为子会话，默认过滤 |
-| HE-05 | 自动 | cwd=null（如 onboarding/Bot Chat） | 非 hidden 时进 No directory；恢复禁用 |
-| HE-06 | 自动 | title 为空，有用户消息 | 取首条用户消息；仍空则 Untitled |
-| HE-07 | 自动 | messages 含 tool/user/assistant | 只渲染 user/assistant；tool 折叠 |
-| HE-08 | 自动 | started_at/last_activity_at 缺失 | 按可用字段；不产生 NaN |
-| HE-09 | 自动 | ended_at 为空 | 不单独推断为运行中；结合 Herdr/活动时间 |
-| HE-10 | 自动 | runtime/active_sessions.json 有 entry | 作为线索；Herdr 状态优先 |
-| HE-11 | 自动 | active_sessions 为空 | 不推断运行中；显示历史或未知 |
-| HE-12 | 自动 | 恢复 | `cd <cwd> && hermes --resume <id>` |
-| HE-13 | 自动 | cwd 不存在 | 恢复禁用；不静默用 home |
-| HE-14 | 自动 | SQLite 被 WAL 锁定 | 只读/快照读取；标记 stale；不写库 |
-| HE-15 | 自动 | state.db 缺失/无权限 | 该 Agent 不可用；其他 Agent 正常 |
-| HE-16 | 自动 | projects.db 有项目 | 不参与分组；仍按 cwd |
-| HE-17 | 自动 | 压缩 lineage 多 session | 投影为一条逻辑会话；保留最新 tip |
-| HE-18 | 自动 | 大 messages 表 | 只查所需列/分页；不阻塞 |
-
----
-
-## 7. 列表、Agent 切换与分页（LIST）
+## 6. 列表、Agent 切换与分页（LIST）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
 | LST-01 | 自动 | 三目录、不同 Agent | 目录列表计数正确 |
 | LST-02 | 自动 | 选中目录 | 右侧只显示该目录会话 |
-| LST-03 | 自动 | Claude/Codex/Hermes 切换（无 All） | 目录/会话/计数/空状态整体切换；一次只显示一个 Agent |
+| LST-03 | 自动 | Claude/Codex 切换（无 All） | 目录/会话/计数/空状态整体切换；一次只显示一个 Agent |
 | LST-04 | 自动 | 某 Agent 0 条 | 切换器菜单项仍可见但不可用/显示无数据；不显示空目录 |
 | LST-05 | 自动 | 切换 Agent 后目录无会话 | 该 AgentView 显示空状态；不借用其他 Agent 的目录 |
 | LST-06 | 自动 | 无 cwd 会话 | No directory 显示；不可恢复 |
@@ -298,10 +265,9 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 | LST-18 | 自动 | 显示 archived/subagent（P1 开关） | 有明确标记；不混为普通会话 |
 | LST-19 | 自动 | Claude 选目录 A、第 2 页；切到 Codex 选目录 B；再切回 Claude | Claude 恢复目录 A/第 2 页；Codex 保持目录 B；互不覆盖 |
 | LST-20 | 自动 | 当前 Agent 刷新失败 | 保持当前 Agent + 旧缓存 + stale；不自动切到其他 Agent |
-| LST-21 | 自动 | 选择 Codex 后重启 mod | 恢复 Codex 视图；没有记录时按 Claude→Codex→Hermes 选第一个可用 |
 | LST-22 | 自动 | 当前 Agent 刷新后变为不可用 | 切换到第一个可用 Agent；显示原因，不显示混合数据 |
 | LST-23 | 手工 | 切换 Agent | 只切换侧栏视图；不切换 Herdr space/tab/pane 焦点 |
-| LST-24 | 手工 | 点击右上角 Agent 切换按钮 | 展开三个选项；无 All；当前项有勾选/高亮 |
+| LST-24 | 手工 | 点击右上角 Agent 切换按钮 | 展开两个选项；无 All；当前项有勾选/高亮 |
 | LST-25 | 手工 | 打开菜单后点外部/Esc | 关闭菜单且不切换 Agent |
 | LST-26 | 自动 | 检查标题栏 | 不显示 `已打开 N · 执行中 M` 汇总条 |
 | LST-27 | 自动 | 选中目录并查看会话列表 | 会话列表上方不显示 `• /Users/.../cwd` 路径行 |
@@ -309,13 +275,12 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 8. 预览（PREV）
+## 7. 预览（PREV）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
 | PRV-01 | 自动 | 单击 Claude 会话 | 只读预览；不启动 claude |
 | PRV-02 | 自动 | 单击 Codex 会话 | 只读预览；不启动 codex |
-| PRV-03 | 自动 | 单击 Hermes 会话 | 只读预览；不启动 hermes |
 | PRV-04 | 自动 | 预览已存在 | 复用 tab；不重复创建 |
 | PRV-05 | 自动 | transcript 缺失 | 错误原因 + 重试；tab 保留 |
 | PRV-06 | 自动 | malformed JSONL/DB | 跳过坏记录；不崩溃 |
@@ -328,13 +293,12 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 9. 恢复与打开（OPEN）
+## 8. 恢复与打开（OPEN）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
 | OPN-01 | 自动 | Claude 历史，双击 | `claude --resume <id>` 在正确 cwd |
 | OPN-02 | 自动 | Codex 历史，双击 | `codex --no-daemon -C cwd resume id` |
-| OPN-03 | 自动 | Hermes 历史，双击 | `hermes --resume <id>` 在正确 cwd |
 | OPN-04 | 自动 | cwd 缺失/不存在/无权限 | 恢复禁用；不启动；原因可见 |
 | OPN-05 | 自动 | 二进制不存在 | 恢复禁用；历史仍可预览 |
 | OPN-06 | 自动 | 已有 live 实例 | 聚焦/挂回；不新建 |
@@ -351,13 +315,12 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 10. 实时匹配与状态（MATCH/STATE）
+## 9. 实时匹配与状态（MATCH/STATE）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
 | MAT-01 | 自动 | Herdr Agent app=claude | 识别为 Claude；使用 Claude 匹配器 |
 | MAT-02 | 自动 | app=codex | 识别为 Codex |
-| MAT-03 | 自动 | app=hermes | 识别为 Hermes |
 | MAT-04 | 自动 | 通用 `agent.kind/session.id` 标签 | confirmed 关联；优先于标题 |
 | MAT-05 | 自动 | 当前前台 argv 为 `--resume <id>` | 按 Agent 解析；confirmed |
 | MAT-06 | 自动 | 标题+cwd 唯一匹配 | inferred；可提示 |
@@ -372,11 +335,10 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 | MAT-15 | 自动 | 终端 finished | 已退出·可恢复；只显示单条状态，不汇总 |
 | MAT-16 | 自动 | 多实例状态 | 每个实例独立状态；不合并、不重复 |
 | MAT-17 | 自动 | 历史且无实例 | 仅历史记录；不显示运行状态徽标 |
-| MAT-18 | 自动 | Hermes 无状态 | unknown；不推断 working |
 
 ---
 
-## 11. 标签与 tab（TAB）
+## 10. 标签与 tab（TAB）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
@@ -392,7 +354,7 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 12. 多 space / 多实例（MULTI）
+## 11. 多 space / 多实例（MULTI）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
@@ -415,7 +377,6 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 | RESUME-FALLBACK-04 | 自动 | binary 缺失或 adapter 禁止恢复 | `mode: unavailable`；预览仍可用 |
 | RESUME-FALLBACK-05 | 自动 | 严格模式 + cwd 失效 | `mode: preview-only`；双击只预览 |
 | RESUME-FALLBACK-06 | 自动 | Codex fallback | argv 不含 `-C`；placeholder 命令含 `cd <fallback>` |
-| RESUME-FALLBACK-07 | 自动 | Hermes fallback | 命令包含 `--no-restore-cwd` |
 | RESUME-FALLBACK-08 | 自动 | Claude fallback | 直接 argv 仍为 `--resume <id>`；placeholder 显式 `cd` |
 | RESUME-FALLBACK-09 | 自动 | fallback 优先级 | 全局 > Agent > 统计默认值；无效值跳过并 warning |
 | RESUME-FALLBACK-10 | 自动 | 统计默认值 | 现存目录公共父目录；否则出现最多目录；全部缺失时 `valid: false` |
@@ -438,23 +399,22 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 13. 错误与降级（ERR）
+## 12. 错误与降级（ERR）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
 | ERR-01 | 自动 | Claude JSONL 全部损坏 | 该 Agent warning；其他正常 |
 | ERR-02 | 自动 | Codex app-server 不可用 | 旧缓存 + stale；其他正常 |
-| ERR-03 | 自动 | Hermes SQLite 锁定 | 只读快照/重试；标记 stale |
 | ERR-04 | 自动 | 缓存不可读/损坏 | 重建；UI 不崩溃 |
 | ERR-05 | 自动 | 数据根无权限 | 该 Agent 不可用；说明原因 |
-| ERR-06 | 自动 | 三 Agent 全失败且无缓存 | 空列表 + 错误 + 重试 |
+| ERR-06 | 自动 | 两个 Agent 全失败且无缓存 | 空列表 + 错误 + 重试 |
 | ERR-07 | 自动 | 单条会话解析失败 | 跳过该条；保留同 Agent 其他会话 |
 | ERR-08 | 自动 | 刷新失败后恢复 | 手动重试成功；状态清除 |
 | ERR-09 | 自动 | UI 渲染异常 | 兜底页 + Retry；不白屏 |
 
 ---
 
-## 14. UI、性能与安全（UI/PERF/SEC）
+## 13. UI、性能与安全（UI/PERF/SEC）
 
 | ID | 类型 | 前置/步骤 | 期望 |
 |---|---|---|---|
@@ -462,27 +422,25 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 | UI-02 | 手工 | 窄侧栏 + 长目录名 | 目录名省略；不遮挡 Agent 切换器 |
 | UI-03 | 手工 | 中文/emoji/超长标题 | 不破版；截断合理 |
 | UI-04 | 自动 | 1000 会话、20 目录 | 首屏可交互；分页有效 |
-| UI-05 | 自动 | 三 Agent 后台刷新 | 不阻塞 UI；当前 AgentView 不被切换；状态最终一致 |
+| UI-05 | 自动 | 两个 Agent 后台刷新 | 不阻塞 UI；当前 AgentView 不被切换；状态最终一致 |
 | UI-06 | 自动 | 缓存大小 | 不含 transcript 全文；大小可控 |
 | SEC-01 | 自动 | 标题/路径含 ANSI/OSC | 清理；不执行终端控制序列 |
 | SEC-02 | 自动 | cwd/标题含 `$()`、反引号、引号 | 命令安全引用；不执行注入 |
-| SEC-03 | 自动 | SQLite 只读 | 不写 Hermes 数据库；不创建 WAL 以外的文件 |
 | SEC-04 | 自动 | 日志/缓存 | 不记录完整对话、密钥、token |
 | SEC-05 | 手工 | 无权限目录 | 不提升权限、不反复重试 |
 
 ---
 
-## 15. 真实冒烟（REG）
+## 14. 真实冒烟（REG）
 
 发布前必须执行，使用真实 Herdr 和真实 Agent 数据；测试后不修改会话内容。
 
 | ID | 类型 | 场景 | 期望 |
 |---|---|---|---|
-| REG-01 | 手工 | 安装后打开侧栏 | 三 Agent 均有数据时，切换三个 Agent 分别按 cwd 展示 |
+| REG-01 | 手工 | 安装后打开侧栏 | 两个 Agent 均有数据时，切换两个 Agent 分别按 cwd 展示 |
 | REG-02 | 手工 | Claude 会话预览 + 恢复 | 正确 cwd；恢复同一 session |
 | REG-03 | 手工 | Codex 会话预览 + 恢复 | 正确 cwd；不重复启动 |
-| REG-04 | 手工 | Hermes 会话预览 + 恢复 | 正确 cwd；同一 session |
-| REG-05 | 手工 | 同一 cwd 下三 Agent 各有会话 | 切换三个 Agent，每次只显示当前 Agent 的目录/会话；不混排 |
+| REG-05 | 手工 | 同一 cwd 下两 Agent 各有会话 | 切换两个 Agent，每次只显示当前 Agent 的目录/会话；不混排 |
 | REG-06 | 手工 | 已有运行实例时双击 | 定位已有 tab；不新建 |
 | REG-07 | 手工 | 关闭/重启 Herdr | 状态重建；缓存可用；无重复 tab |
 | REG-08 | 手工 | 目录被删除后打开 | 历史可见；恢复禁用；提示明确 |
@@ -491,16 +449,16 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 16. 功能追踪
+## 15. 功能追踪
 
 | 产品功能 | 覆盖用例 |
 |---|---|
-| F-01 统一同步 | SYNC-01..16, CL-01, CX-01, HE-01 |
+| F-01 统一同步 | SYNC-01..15, CL-01, CX-01 |
 | F-02 cwd 分组 | DIR-01..28 |
 | F-03 Agent 切换 | LST-03..05, LST-19..25 |
 | F-04 会话列表 | LST-01..18, LST-26..28, UI-01..05 |
 | F-05 预览 | PRV-01..12 |
-| F-06 恢复 | OPN-01..16, REG-02..04 |
+| F-06 恢复 | OPN-01..16, REG-02..03 |
 | F-07 状态显示 | MAT-01..18 |
 | F-08 去重/定位 | OPN-06..10, MAT-04..09, MUL-06 |
 | F-09 部分失败降级 | SYNC-02..03, SYNC-09, ERR-01..09 |
@@ -518,12 +476,12 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 
 ---
 
-## 17. 自动化补测建议
+## 16. 自动化补测建议
 
 优先级从高到低：
 
 1. **先补纯函数**：cwd 规范化、目录分组、去重、过滤、分页、状态标签。这些不依赖真实 Agent，最容易稳定回归。
-2. **再补适配器 fixture**：Claude JSONL、fake Codex app-server、临时 Hermes SQLite。每个适配器至少覆盖“正常、空、坏、缺字段、cwd null”。
+2. **再补适配器 fixture**：Claude JSONL、fake Codex app-server、临时 fixture。每个适配器至少覆盖“正常、空、坏、缺字段、cwd null”。
 3. **再补 helper CLI**：sync 部分失败、缓存 schema、0600、并发。
 4. **最后补 Herdr 交互**：标签优先级、恢复命令、精确 space 匹配、重复点击锁。能用纯函数测的不要放到 GUI。
 5. **真实冒烟只保留少量**：每个 Agent 一条预览 + 一条恢复 + 一次重启重建。
@@ -534,5 +492,4 @@ node mods/herdr-codex-sidebar-mod/helper/agent-history.mjs sync \
 npm test
 node --test test/normalize.test.mjs test/directory-view.test.mjs \
   test/adapters-claude.test.mjs test/adapters-codex.test.mjs \
-  test/adapters-hermes.test.mjs test/launch-target.test.mjs
 ```

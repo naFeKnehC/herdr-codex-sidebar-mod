@@ -27,7 +27,6 @@ test("installs a self-contained Agent History mod without developer-specific pat
     "helper/codex-history.mjs",
     "helper/lib/adapters/claude.mjs",
     "helper/lib/adapters/codex.mjs",
-    "helper/lib/adapters/hermes.mjs",
     "helper/lib/cache.mjs",
     "helper/lib/normalize.mjs",
     "helper/lib/transcript.mjs",

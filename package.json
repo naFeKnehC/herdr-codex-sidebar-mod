@@ -1,7 +1,7 @@
 {
   "name": "herdr-codex-sidebar-mod",
   "version": "0.2.0",
-  "description": "A Herdr mod for browsing and resuming Claude, Codex and Hermes history by working directory.",
+  "description": "A Herdr mod for browsing and resuming Claude and Codex history by working directory.",
   "private": true,
   "type": "module",
   "scripts": {

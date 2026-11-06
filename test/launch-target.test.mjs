@@ -57,6 +57,27 @@ test("finds a space through an exact-cwd pane and ignores remote spaces", () => 
   assert.equal(findDirectorySpace(spaces, panes, [], "/tmp/app").id, "local");
 });
 
+test("reuses a space whose folder moved but still has a pane in the target cwd", () => {
+  // 旧版本可能先建 space 后把 folder 指向别的目录；终端仍在目标目录时复用。
+  const spaces = [
+    { id: "legacy", folder: "/tmp/elsewhere", tabs: [{ id: "tab" }] },
+  ];
+  const panes = [{ tab: "tab", pane: "p1", cwd: "/tmp/app" }];
+  assert.equal(findDirectorySpace(spaces, panes, [], "/tmp/app").id, "legacy");
+  assert.equal(findDirectorySpace(spaces, panes, [], "/tmp/elsewhere").id, "legacy");
+});
+
+test("prefers a folder match over a pane-cwd match", () => {
+  const spaces = [
+    { id: "pane", folder: "/tmp/elsewhere", tabs: [{ id: "pane-tab" }] },
+    { id: "folder", folder: "/tmp/app", tabs: [] },
+  ];
+  const panes = [{ tab: "pane-tab", pane: "p1", cwd: "/tmp/app" }];
+  const matches = findDirectorySpaceMatches(spaces, panes, [], "/tmp/app");
+  assert.deepEqual(matches.map((match) => match.space.id), ["folder", "pane"]);
+  assert.equal(findDirectorySpace(spaces, panes, [], "/tmp/app").id, "folder");
+});
+
 test("never creates a space target for no-cwd sessions", () => {
   const spaces = [{ id: "home", folder: "/Users/me", tabs: [] }];
   assert.equal(findDirectorySpace(spaces, [], [], null), null);
@@ -100,10 +121,6 @@ test("direct resume commands leave cwd to the tab folder", () => {
     resumeCommand("codex", { bin: "/opt/codex", cwd: "/tmp/project", sessionId: "x1" }),
     "'/opt/codex' --no-daemon -C '/tmp/project' resume 'x1'",
   );
-  assert.equal(
-    resumeCommand("hermes", { bin: "/opt/hermes", cwd: "/tmp/project", sessionId: "h1" }),
-    "'/opt/hermes' --resume 'h1'",
-  );
   assert.throws(() => resumeCommand("other", { bin: "x", cwd: "/tmp", sessionId: "1" }));
 });
 
@@ -118,10 +135,6 @@ test("fallback resume commands never carry the original cwd", () => {
     "'/opt/codex' --no-daemon resume 'x1'",
   );
   assert.equal(
-    resumeCommand("hermes", { bin: "/opt/hermes", cwd: "/tmp/fallback", sessionId: "h1", mode: "fallback" }),
-    "'/opt/hermes' --no-restore-cwd --resume 'h1'",
-  );
-  assert.equal(
     resumeCommand("claude", { bin: "/opt/claude", cwd: "/tmp/fallback", sessionId: "c1", mode: "fallback" }),
     "'/opt/claude' --resume 'c1'",
   );
@@ -134,18 +147,12 @@ test("builds argv for direct tab launches", () => {
   assert.deepEqual(resumeArgv("codex", { bin: "/opt/codex", cwd: "/tmp/a", sessionId: "x1" }), [
     "/opt/codex", "--no-daemon", "-C", "/tmp/a", "resume", "x1",
   ]);
-  assert.deepEqual(resumeArgv("hermes", { bin: "/opt/hermes", cwd: "/tmp/a", sessionId: "h1" }), [
-    "/opt/hermes", "--resume", "h1",
-  ]);
 });
 
-test("builds argv for fallback launches without -C and with Hermes no-restore", () => {
+test("builds argv for fallback launches without -C", () => {
   assert.deepEqual(resumeArgv("codex", {
     bin: "/opt/codex", cwd: "/tmp/fallback", sessionId: "x1", mode: "fallback",
   }), ["/opt/codex", "--no-daemon", "resume", "x1"]);
-  assert.deepEqual(resumeArgv("hermes", {
-    bin: "/opt/hermes", cwd: "/tmp/fallback", sessionId: "h1", mode: "override",
-  }), ["/opt/hermes", "--no-restore-cwd", "--resume", "h1"]);
   assert.deepEqual(resumeArgv("claude", {
     bin: "/opt/claude", cwd: "/tmp/fallback", sessionId: "c1", mode: "fallback",
   }), ["/opt/claude", "--resume", "c1"]);
@@ -165,13 +172,13 @@ test("wraps resume with cd and an agent.resume.exit label", () => {
 test("fallback placeholder explicitly cds into the fallback directory", () => {
   const command = resumeShellCommand("codex", "/opt/codex", "/tmp/fallback", "x1", { mode: "fallback" });
   assert.equal(command, "cd '/tmp/fallback' && '/opt/codex' --no-daemon resume 'x1'");
-  const wrapped = resumeShellCommand("hermes", "/opt/hermes", "/tmp/fallback", "h1", {
+  const wrapped = resumeShellCommand("claude", "/opt/claude", "/tmp/fallback", "c1", {
     mode: "fallback",
     hcBin: "/opt/herdr/bin/hc",
     terminal: "t7",
   });
   assert.match(wrapped, /cd '\\''\/tmp\/fallback'\\''/);
-  assert.match(wrapped, /--no-restore-cwd/);
+  assert.match(wrapped, /--resume/);
   assert.match(wrapped, /agent\.resume\.exit=\$status/);
 });
 
@@ -189,15 +196,15 @@ test("preview is read-only and does not cd into a possibly missing cwd", () => {
     "'/opt/agent-history' preview --agent 'claude' --session 'c1' --cwd '/tmp/missing' --path '/tmp/c1.jsonl' --title 'A title'",
   );
   const wrapped = previewShellCommand("/opt/agent-history", {
-    agent: "hermes",
-    sessionId: "h1",
+    agent: "codex",
+    sessionId: "x1",
     cwd: null,
     hcBin: "/opt/herdr/bin/hc",
     terminal: "t7",
   });
   assert.match(wrapped, /^sh -c '/);
   assert.match(wrapped, /agent\.preview\.exit=\$status/);
-  assert.match(wrapped, /--agent '\\''hermes'\\''/);
+  assert.match(wrapped, /--agent '\\''codex'\\''/);
 });
 
 const okSession = {

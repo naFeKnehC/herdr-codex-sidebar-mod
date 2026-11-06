@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { zstdCompressSync } from "node:zlib";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -91,8 +92,8 @@ test("renders a readable history preview and strips terminal escapes", () => {
   assert.equal(sanitizeTerminalText("\x1b[31mred\x1b[0m"), "red");
 });
 
-test("renders Claude and Hermes previews with their own names", () => {
-  for (const [agent, name] of [["claude", "Claude"], ["hermes", "Hermes"]]) {
+test("renders Claude and Codex previews with their own names", () => {
+  for (const [agent, name] of [["claude", "Claude"], ["codex", "Codex"]]) {
     const output = renderTranscript({
       agent,
       title: "Chat",
@@ -132,4 +133,26 @@ test("finds and reads a transcript by thread id", async () => {
   assert.equal(await findTranscriptPath({ codexHome: home, threadId: "thread-1" }), path);
   const transcript = await readThreadTranscript({ codexHome: home, threadId: "thread-1" });
   assert.equal(transcript.messages[0].text, "History");
+});
+
+test("reads a compressed .jsonl.zst transcript reported by its original path", async () => {
+  const home = await mkdtemp(join(tmpdir(), "codex-zst-"));
+  const directory = join(home, "sessions", "2026", "11", "02");
+  await mkdir(directory, { recursive: true });
+  const raw = join(directory, "rollout-thread-z.jsonl");
+  const body = `${JSON.stringify({
+    type: "event_msg",
+    payload: {
+      type: "item_completed",
+      item: { type: "AgentMessage", content: [{ type: "Text", text: "Compressed" }] },
+    },
+  })}\n`;
+  await writeFile(`${raw}.zst`, zstdCompressSync(Buffer.from(body)));
+
+  // app-server 仍然报告未压缩路径，必须自动补试 .zst。
+  assert.equal(await findTranscriptPath({ codexHome: home, threadId: "z", path: raw }), `${raw}.zst`);
+  assert.equal(await findTranscriptPath({ codexHome: home, threadId: "z" }), `${raw}.zst`);
+  const transcript = await readThreadTranscript({ codexHome: home, threadId: "z", path: raw });
+  assert.equal(transcript.path, `${raw}.zst`);
+  assert.equal(transcript.messages[0].text, "Compressed");
 });

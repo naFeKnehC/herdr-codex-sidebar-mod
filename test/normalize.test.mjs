@@ -106,7 +106,7 @@ test("no-directory group always sorts last and can only resume via fallback", ()
 });
 
 test("archived, hidden and subagent sessions are filtered out and not counted", () => {
-  const view = buildAgentView("hermes", [
+  const view = buildAgentView("codex", [
     { id: "normal", cwd: "/tmp/a" },
     { id: "archived", cwd: "/tmp/a", archived: true },
     { id: "hidden", cwd: "/tmp/a", hidden: true },

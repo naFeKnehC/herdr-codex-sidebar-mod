@@ -8,7 +8,6 @@ import { agentViewFor } from "./lib/normalize.mjs";
 import { detectBinary, errorMessage } from "./lib/adapters/common.mjs";
 import { readClaudePreview, readClaudeSessions } from "./lib/adapters/claude.mjs";
 import { readCodexPreview, readCodexSessions } from "./lib/adapters/codex.mjs";
-import { readHermesPreview, readHermesSessions } from "./lib/adapters/hermes.mjs";
 import { renderTranscript } from "./lib/transcript.mjs";
 
 const now = () => Math.floor(Date.now() / 1000);
@@ -63,7 +62,6 @@ function detectBinaries(env = process.env) {
   return {
     claude: detectBinary("claude", { env }),
     codex: detectBinary("codex", { env }),
-    hermes: detectBinary("hermes", { env }),
   };
 }
 
@@ -77,7 +75,6 @@ export async function runCli(argv = process.argv.slice(2)) {
   const home = homedir();
   const claudeHome = flag("--claude-home") || env.CLAUDE_HOME || env.CLAUDE_CONFIG_DIR || join(home, ".claude");
   const codexHome = flag("--codex-home") || env.CODEX_HOME || join(home, ".codex");
-  const hermesHome = flag("--hermes-home") || env.HERMES_HOME || join(home, ".hermes");
   const cache = flag("--cache") || cachePath({ home, appHome: env.HERDR_APP_HOME, env });
   const timeoutMs = Math.max(50, Number(flag("--timeout") || env.AGENT_HISTORY_TIMEOUT_MS || 20_000));
   const output = (value) => process.stdout.write(
@@ -106,7 +103,6 @@ export async function runCli(argv = process.argv.slice(2)) {
             codex: env.CODEX_BIN || undefined,
             timeoutMs,
           }),
-          hermes: () => readHermesSessions({ hermesHome }),
         };
         try {
           const result = await withTimeout(tasks[agent], timeoutMs, AGENT_NAMES[agent]);
@@ -234,7 +230,6 @@ export async function runCli(argv = process.argv.slice(2)) {
       const path = flag("--path") || null;
       let transcript;
       if (agent === "claude") transcript = await readClaudePreview({ claudeHome, sessionId, path });
-      else if (agent === "hermes") transcript = await readHermesPreview({ hermesHome, sessionId });
       else transcript = await readCodexPreview({ codexHome, sessionId, path });
       const title = flag("--title") || transcript.title || null;
       process.stdout.write(renderTranscript({
