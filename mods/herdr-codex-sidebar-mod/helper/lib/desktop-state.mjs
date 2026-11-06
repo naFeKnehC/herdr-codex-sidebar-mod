@@ -38,7 +38,14 @@ export async function readCodexDesktopState({ codexHome } = {}) {
       projectless: (state["projectless-thread-ids"] ?? []).map(String),
       appServerProjectIds,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    return {
+      projects: [],
+      assignments: {},
+      projectless: [],
+      appServerProjectIds: {},
+      warnings: [`Could not read Codex Desktop project state: ${error.message}`],
+    };
   }
 }

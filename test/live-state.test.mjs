@@ -1,97 +1,215 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  codexTerminalLabels,
-  isActiveCodexAgent,
-  isCodexAgent,
-  isCodexCommand,
+  agentKindOf,
+  agentTerminalLabels,
+  isActiveAgent,
+  isAgent,
+  isAgentCommand,
+  labelValue,
   managedTabTitle,
   matchLiveChat,
+  matchLiveSession,
+  resumedSessionId,
+  sessionIdentity,
 } from "../mods/herdr-codex-sidebar-mod/live-state.mjs";
 
-test("only active Codex agents count as live", () => {
-  assert.equal(isActiveCodexAgent({ app: "codex", status: "working" }), true);
-  assert.equal(isActiveCodexAgent({ app: "codex", status: "blocked" }), true);
-  assert.equal(isActiveCodexAgent({ program: { key: "codex" }, status: "idle" }), false);
-  assert.equal(isActiveCodexAgent({ app: "codex", status: "done" }), false);
-  assert.equal(isActiveCodexAgent({ app: "shell", status: "working" }), false);
+test("recognizes Claude, Codex and Hermes agents and commands", () => {
+  assert.equal(agentKindOf({ app: "claude" }), "claude");
+  assert.equal(agentKindOf({ app: "claude-code" }), "claude");
+  assert.equal(agentKindOf({ program: { key: "codex" } }), "codex");
+  assert.equal(agentKindOf({ program: { key: "hermes" } }), "hermes");
+  assert.equal(agentKindOf("Claude"), "claude");
+  assert.equal(agentKindOf({ app: "shell" }), null);
+  assert.equal(isAgent({ app: "codex" }, "codex"), true);
+  assert.equal(isAgent({ app: "codex" }, "claude"), false);
+  assert.equal(isAgentCommand("/opt/homebrew/bin/codex", "codex"), true);
+  assert.equal(isAgentCommand("/opt/bin/claude", "claude"), true);
+  assert.equal(isAgentCommand("hermes", "hermes"), true);
+  assert.equal(isAgentCommand("zsh"), false);
 });
 
-test("idle Codex agents remain available for focus", () => {
-  assert.equal(isCodexAgent({ app: "codex", status: "idle" }), true);
-  assert.equal(isActiveCodexAgent({ app: "codex", status: "idle" }), false);
+test("only working or blocked agents count as active", () => {
+  assert.equal(isActiveAgent({ app: "codex", status: "working" }), true);
+  assert.equal(isActiveAgent({ app: "claude", status: "blocked" }), true);
+  assert.equal(isActiveAgent({ app: "hermes", status: "idle" }), false);
+  assert.equal(isActiveAgent({ app: "hermes", status: "done" }), false);
+  assert.equal(isActiveAgent({ app: "shell", status: "working" }), false);
 });
 
-test("recognizes Codex executable paths", () => {
-  assert.equal(isCodexCommand("/opt/homebrew/bin/codex"), true);
-  assert.equal(isCodexCommand("codex"), true);
-  assert.equal(isCodexCommand("zsh"), false);
+test("writes generic agent labels and clears legacy codex labels", () => {
+  const labels = agentTerminalLabels({
+    kind: "claude",
+    sessionId: "session-1",
+    cwd: "/tmp/it's here",
+    tabTitle: "Conversation",
+    placeholder: true,
+  });
+  assert.ok(labels.includes("agent.kind=claude"));
+  assert.ok(labels.includes("agent.session.id=session-1"));
+  assert.ok(labels.includes("agent.cwd=/tmp/it's here"));
+  assert.ok(labels.includes("agent.managed=true"));
+  assert.ok(labels.includes("agent.placeholder=true"));
+  assert.ok(labels.includes("agent.tab.title=Conversation"));
+  assert.ok(labels.includes("agent.preview.exit="));
+  assert.ok(labels.includes("agent.resume.exit="));
+  assert.ok(labels.includes("codex.thread.id="));
+  assert.ok(labels.includes("codex.project.id="));
 });
 
-test("matches a resumed thread by the current command, not stale labels", () => {
-  const session = {
-    argv: ["/opt/homebrew/bin/codex", "resume", "new-thread"],
-    agent: { title: "A reused pane" },
-    pane: { cwd: "/tmp/project" },
-  };
-  const chats = [
-    { id: "old-thread", title: "Old chat", cwd: "/tmp/project" },
-    { id: "new-thread", title: "New chat", cwd: "/tmp/project" },
+test("reads generic labels first and falls back to legacy codex labels", () => {
+  assert.deepEqual(sessionIdentity({
+    labels: {
+      "agent.kind": "hermes",
+      "agent.session.id": "h1",
+      "agent.cwd": "/tmp/h",
+    },
+  }), { agent: "hermes", id: "h1", cwd: "/tmp/h" });
+
+  assert.deepEqual(sessionIdentity({
+    labels: { "codex.thread.id": "old", "codex.cwd": "/tmp/old" },
+  }), { agent: "codex", id: "old", cwd: "/tmp/old" });
+
+  assert.deepEqual(sessionIdentity({ labels: ["agent.kind=claude", "agent.session.id=c1"] }), {
+    agent: "claude",
+    id: "c1",
+    cwd: null,
+  });
+});
+
+test("parses resume ids for --resume and codex resume syntax", () => {
+  assert.equal(resumedSessionId(["claude", "--resume", "c1"], "claude"), "c1");
+  assert.equal(resumedSessionId(["hermes", "--resume", "h1"], "hermes"), "h1");
+  assert.equal(resumedSessionId(["codex", "--no-daemon", "-C", "/tmp", "resume", "x1"], "codex"), "x1");
+  assert.equal(resumedSessionId(["zsh"], "codex"), null);
+});
+
+test("matches a Claude session by agent.session.id label", () => {
+  const sessions = [
+    { agent: "claude", id: "c1", title: "One", cwd: "/tmp/project" },
+    { agent: "claude", id: "c2", title: "Two", cwd: "/tmp/project" },
   ];
-  assert.equal(matchLiveChat(session, chats).id, "new-thread");
+  const live = {
+    agent: { app: "claude", title: "Claude" },
+    pane: { cwd: "/tmp/project" },
+    terminal: { labels: { "agent.kind": "claude", "agent.session.id": "c2" } },
+  };
+  const result = matchLiveSession(live, sessions, { kind: "claude" });
+  assert.equal(result.session.id, "c2");
+  assert.equal(result.confidence, "confirmed");
 });
 
-test("the current title wins over resume argv after /new switches threads", () => {
-  const session = {
-    argv: ["/opt/homebrew/bin/codex", "resume", "old-thread"],
-    agent: { title: "⠹ New conversation | project" },
+test("matches a Codex session through legacy labels and current argv", () => {
+  const sessions = [{ agent: "codex", id: "t1", title: "Old", cwd: "/tmp/project" }];
+  const live = {
+    agent: { app: "codex", title: "Codex" },
     pane: { cwd: "/tmp/project" },
+    terminal: { labels: { "codex.thread.id": "t1" } },
   };
-  const chats = [
-    { id: "old-thread", title: "Old conversation", cwd: "/tmp/project" },
-    { id: "new-thread", title: "New conversation", cwd: "/tmp/project" },
+  assert.equal(matchLiveChat(live, sessions, { kind: "codex" }).id, "t1");
+});
+
+test("the current title wins over stale resume argv after /new", () => {
+  const live = {
+    agent: { app: "codex", title: "⠹ New conversation | project" },
+    pane: { cwd: "/tmp/project" },
+    argv: ["codex", "resume", "old-thread"],
+  };
+  const sessions = [
+    { agent: "codex", id: "old-thread", title: "Old conversation", cwd: "/tmp/project" },
+    { agent: "codex", id: "new-thread", title: "New conversation", cwd: "/tmp/project" },
   ];
-  assert.equal(matchLiveChat(session, chats).id, "new-thread");
+  assert.equal(matchLiveChat(live, sessions, { kind: "codex" }).id, "new-thread");
 });
 
-test("does not mark duplicate title chats live for one id-less session", () => {
-  const session = {
-    argv: ["codex"],
-    agent: { title: "Same title" },
+test("a foreground resume command is direct evidence for a new session", () => {
+  const live = {
+    agent: { app: "claude", title: "Claude" },
     pane: { cwd: "/tmp/project" },
+    foregroundArgv: ["claude", "--resume", "new-session"],
   };
-  const chats = [
-    { id: "first", title: "Same title", cwd: "/tmp/project" },
-    { id: "second", title: "Same title", cwd: "/tmp/project" },
+  const sessions = [
+    { agent: "claude", id: "old-session", title: "Old", cwd: "/tmp/project" },
+    { agent: "claude", id: "new-session", title: "New", cwd: "/tmp/project" },
   ];
-  assert.equal(matchLiveChat(session, chats), null);
+  const result = matchLiveSession(live, sessions, { kind: "claude" });
+  assert.equal(result.session.id, "new-session");
+  assert.equal(result.confidence, "confirmed");
 });
 
-test("does not require the reused pane foreground command to be codex", () => {
-  const session = {
-    argv: ["zsh"],
-    agent: { title: "Current chat" },
+test("does not match sessions from another agent even with the same id", () => {
+  const live = {
+    agent: { app: "claude", title: "Same title" },
+    pane: { cwd: "/tmp/project" },
+    terminal: { labels: { "agent.kind": "claude", "agent.session.id": "same" } },
+  };
+  const sessions = [{ agent: "codex", id: "same", title: "Same title", cwd: "/tmp/project" }];
+  const result = matchLiveSession(live, sessions, { kind: "claude" });
+  assert.equal(result.session, null);
+  assert.equal(result.confidence, "none");
+});
+
+test("duplicate titles in the same cwd are ambiguous rather than guessed", () => {
+  const live = {
+    agent: { app: "hermes", title: "Same" },
     pane: { cwd: "/tmp/project" },
   };
-  assert.equal(matchLiveChat(session, [{ id: "current", title: "Current chat", cwd: "/tmp/project" }]).id, "current");
+  const sessions = [
+    { agent: "hermes", id: "a", title: "Same", cwd: "/tmp/project" },
+    { agent: "hermes", id: "b", title: "Same", cwd: "/tmp/project" },
+  ];
+  const result = matchLiveSession(live, sessions, { kind: "hermes" });
+  assert.equal(result.session, null);
+  assert.equal(result.confidence, "ambiguous");
+  assert.equal(result.candidates.length, 2);
 });
 
-test("infers a new thread from the terminal start time and cwd", () => {
-  const session = {
-    argv: ["node", "/opt/codex"],
-    agent: { title: "Codex" },
+test("same title in different folders stays independent", () => {
+  const live = {
+    agent: { app: "codex", title: "Same" },
+    pane: { cwd: "/tmp/a" },
+  };
+  const sessions = [
+    { agent: "codex", id: "a", title: "Same", cwd: "/tmp/a" },
+    { agent: "codex", id: "b", title: "Same", cwd: "/tmp/b" },
+  ];
+  const result = matchLiveSession(live, sessions, { kind: "codex" });
+  assert.equal(result.session.id, "a");
+  assert.equal(result.confidence, "inferred");
+});
+
+test("infers a new session from terminal start time and cwd only when unique", () => {
+  const live = {
+    agent: { app: "codex", title: "Codex" },
     pane: { cwd: "/tmp/project" },
     terminal: { created_ms: 1_800_000_000_000 },
+    argv: ["codex"],
   };
-  const chats = [
-    { id: "old", title: "Old", cwd: "/tmp/project", createdAt: 1_799_000_000 },
-    { id: "new", title: "New conversation", cwd: "/tmp/project", createdAt: 1_800_000_040 },
-    { id: "helper", title: "Guardian review", cwd: "/tmp/project", createdAt: 1_800_000_041, subagent: true },
+  const sessions = [
+    { agent: "codex", id: "old", title: "Old", cwd: "/tmp/project", createdAt: 1_799_000_000 },
+    { agent: "codex", id: "new", title: "New", cwd: "/tmp/project", createdAt: 1_800_000_040 },
+    { agent: "codex", id: "helper", title: "Guardian", cwd: "/tmp/project", createdAt: 1_800_000_041, subagent: true },
   ];
-  assert.equal(matchLiveChat(session, chats).id, "new");
+  assert.equal(matchLiveChat(live, sessions, { kind: "codex" }).id, "new");
+
+  const tie = matchLiveSession({ ...live, pane: { cwd: "/tmp/tie" } }, [
+    { agent: "codex", id: "a", title: "A", cwd: "/tmp/tie", createdAt: 1_800_000_000 },
+    { agent: "codex", id: "b", title: "B", cwd: "/tmp/tie", createdAt: 1_800_000_000 },
+  ], { kind: "codex" });
+  assert.equal(tie.confidence, "none");
 });
 
-test("managed tab names follow the latest agent summary", () => {
+test("does not use stale resume argv when the current title is unrecognized", () => {
+  const result = matchLiveSession({
+    agent: { app: "codex", title: "Current conversation" },
+    pane: { cwd: "/tmp/project" },
+    argv: ["codex", "resume", "old"],
+  }, [{ agent: "codex", id: "old", title: "Old", cwd: "/tmp/project" }], { kind: "codex" });
+  assert.equal(result.session, null);
+  assert.equal(result.confidence, "none");
+});
+
+test("updates only tab titles this mod manages", () => {
   assert.equal(managedTabTitle({
     tabName: "Pi",
     managedName: null,
@@ -102,9 +220,6 @@ test("managed tab names follow the latest agent summary", () => {
     managedName: "旧标题",
     chatTitle: "新标题",
   }), "新标题");
-});
-
-test("a renamed tab is left alone", () => {
   assert.equal(managedTabTitle({
     tabName: "我的自定义标题",
     managedName: "旧标题",
@@ -112,44 +227,47 @@ test("a renamed tab is left alone", () => {
   }), null);
 });
 
-test("unassigned chats clear stale project labels", () => {
-  assert.deepEqual(
-    codexTerminalLabels(
-      { id: null, name: "Unassigned", roots: [] },
-      { id: "thread-1" },
-      "Conversation",
-    ),
-    [
-      "codex.thread.id=thread-1",
-      "codex.managed=true",
-      "codex.project.id=",
-      "codex.tab.title=Conversation",
-      "codex.placeholder=",
-    ],
-  );
+test("matches a fallback-resumed session through the effective cwd callback", () => {
+  const sessions = [{ agent: "codex", id: "x1", title: "Same", cwd: "/old/gone" }];
+  const live = {
+    agent: { app: "codex", title: "Same" },
+    pane: { cwd: "/fallback" },
+    terminal: { labels: { "agent.kind": "codex", "agent.cwd": "/fallback" } },
+  };
+
+  // 原 cwd 已失效且与 live cwd 不同：没有回调时标题候选会被过滤。
+  assert.equal(matchLiveSession(live, sessions, { kind: "codex" }).confidence, "none");
+
+  const result = matchLiveSession(live, sessions, {
+    kind: "codex",
+    cwdForSession: () => "/fallback",
+  });
+  assert.equal(result.session.id, "x1");
+  assert.equal(result.confidence, "inferred");
 });
 
-test("assigned chats keep their project label", () => {
-  assert.deepEqual(
-    codexTerminalLabels(
-      { id: "project-1", name: "Project", roots: ["/tmp/project"] },
-      { id: "thread-1" },
-    ),
-    [
-      "codex.thread.id=thread-1",
-      "codex.managed=true",
-      "codex.project.id=project-1",
-      "codex.placeholder=",
-    ],
-  );
+test("time-based inference also uses the effective cwd", () => {
+  const live = {
+    agent: { app: "claude", title: "Claude" },
+    pane: { cwd: "/fallback" },
+    terminal: { created_ms: 1_800_000_000_000 },
+  };
+  const sessions = [{
+    agent: "claude",
+    id: "c1",
+    title: "Old title",
+    cwd: "/old/gone",
+    createdAt: 1_800_000_040,
+  }];
+  assert.equal(matchLiveChat(live, sessions, { kind: "claude" }), null);
+  assert.equal(matchLiveChat(live, sessions, {
+    kind: "claude",
+    cwdForSession: () => "/fallback",
+  }).id, "c1");
 });
 
-test("placeholder tabs carry a removable marker", () => {
-  const labels = codexTerminalLabels(
-    { id: "project-1" },
-    { id: "thread-1" },
-    "Conversation",
-    true,
-  );
-  assert.equal(labels.at(-1), "codex.placeholder=true");
+test("labelValue supports object and core label arrays", () => {
+  assert.equal(labelValue({ labels: { x: "one" } }, "x"), "one");
+  assert.equal(labelValue({ labels: ["x=two"] }, "x"), "two");
+  assert.equal(labelValue({ labels: ["x=two"] }, "missing"), null);
 });

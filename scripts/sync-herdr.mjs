@@ -10,7 +10,7 @@ const modSource = join(repo, "mods", "herdr-codex-sidebar-mod");
 const modTarget = join(appHome, "mods", "herdr-codex-sidebar-mod");
 
 await mkdir(join(appHome, "mods"), { recursive: true });
-await mkdir(join(appHome, "data", "herdr-codex-sidebar-mod"), { recursive: true });
+await mkdir(join(appHome, "data", "herdr-agent-history"), { recursive: true });
 
 await rm(modTarget, { recursive: true, force: true });
 await cp(modSource, modTarget, { recursive: true, filter: (source) => !source.endsWith("gpui-kit.d.ts") });

@@ -95,7 +95,7 @@ export class CodexAppServer {
 
   async initialize() {
     return this.request("initialize", {
-      clientInfo: { name: "herdr-codex-sidebar-mod", version: "0.1.0" },
+      clientInfo: { name: "herdr-agent-history-mod", version: "0.2.0" },
       capabilities: { experimentalApi: true },
     });
   }
@@ -121,23 +121,3 @@ export class CodexAppServer {
   }
 }
 
-export async function readCodexHistory({ codexHome, codex, timeoutMs } = {}) {
-  const server = new CodexAppServer({ codexHome, codex, timeoutMs });
-  const warnings = [];
-  try {
-    await server.initialize();
-    // The notification is not required by current app-server versions, but is
-    // part of JSON-RPC lifecycle and harmless for older versions.
-    try { server.child.stdin.write('{"jsonrpc":"2.0","method":"initialized","params":{}}\n'); } catch {}
-    const projectsPromise = server.list("project/list", { limit: 100 }).catch((error) => {
-      if (error.code !== -32601 && !/method not found|unknown method/i.test(error.message)) throw error;
-      warnings.push("project/list is unavailable; chats were grouped by working directory.");
-      return [];
-    });
-    const threadsPromise = server.list("thread/list", { limit: 100, archived: false, useStateDbOnly: true });
-    const [projects, threads] = await Promise.all([projectsPromise, threadsPromise]);
-    return { projects, threads, warnings };
-  } finally {
-    server.close();
-  }
-}

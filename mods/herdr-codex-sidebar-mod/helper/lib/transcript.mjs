@@ -3,6 +3,8 @@ import { basename, join } from "node:path";
 
 const ANSI_PATTERN = /\x1b(?:\][^\x07]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|[@-_])/g;
 const CONTROL_PATTERN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+const MAX_PREVIEW_MESSAGES = 200;
+const MAX_MESSAGE_CHARS = 8_000;
 
 const clean = (value) => String(value ?? "").replace(/\r\n?/g, "\n").trim();
 
@@ -13,6 +15,9 @@ export function sanitizeTerminalText(value) {
     .trim();
 }
 
+const AGENT_NAMES = { claude: "Claude", codex: "Codex", hermes: "Hermes" };
+export const agentDisplayName = (agent) => AGENT_NAMES[agent] || "Agent";
+
 function contentText(content) {
   if (typeof content === "string") return clean(content);
   if (!Array.isArray(content)) return "";
@@ -20,7 +25,8 @@ function contentText(content) {
     if (typeof part === "string") return part;
     if (part?.text) return part.text;
     if (part?.type === "local_image" && part.path) return `[image: ${basename(part.path)}]`;
-    if (part?.type === "input_image") return "[image]";
+    if (part?.type === "input_image" || part?.type === "image") return "[image]";
+    if (part?.type === "tool_use" || part?.type === "tool_result" || part?.type === "tool") return "[tool]";
     return "";
   }).filter(Boolean).join("\n"));
 }
@@ -46,6 +52,7 @@ function responseMessage(row) {
   if (role === "user" && (
     text.includes("<environment_context>")
     || text.includes("# AGENTS.md instructions")
+    || text.startsWith("<system-reminder>")
   )) return null;
   return { role, text, at: row.timestamp };
 }
@@ -128,25 +135,41 @@ function terminalTime(value) {
   });
 }
 
-export function renderTranscript({ title, threadId, cwd, messages, color = true }) {
+export function renderTranscript({
+  agent = "codex",
+  title,
+  sessionId,
+  threadId,
+  cwd,
+  messages,
+  color = true,
+}) {
   const paint = (code, value) => color ? `\x1b[${code}m${value}\x1b[0m` : value;
+  const name = agentDisplayName(agent);
   const line = "-".repeat(76);
+  const id = sessionId ?? threadId ?? "";
+  const allMessages = Array.isArray(messages) ? messages : [];
+  const visible = allMessages.slice(0, MAX_PREVIEW_MESSAGES);
   const out = [
-    paint("1;36", `Codex history: ${sanitizeTerminalText(title) || "Untitled chat"}`),
-    paint("2", `Thread ${threadId}`),
+    paint("1;36", `${name} history: ${sanitizeTerminalText(title) || "Untitled chat"}`),
+    paint("2", `Session ${id}`),
   ];
   if (cwd) out.push(paint("2", `CWD ${cwd}`));
   out.push(line, "");
 
-  for (const message of messages) {
-    const role = message.role === "user" ? "You" : "Codex";
+  for (const message of visible) {
+    const role = message.role === "user" ? "You" : name;
     const roleColor = message.role === "user" ? "1;34" : "1;32";
     const at = terminalTime(message.at);
+    const text = sanitizeTerminalText(message.text).slice(0, MAX_MESSAGE_CHARS);
     out.push(paint(roleColor, `${role}${at ? `  ${at}` : ""}`));
-    out.push(sanitizeTerminalText(message.text), "");
+    out.push(text, "");
   }
 
-  if (!messages.length) out.push(paint("2", "No readable messages in this local transcript."), "");
-  out.push(line, paint("2", "History preview only. Double-click the chat in the sidebar to resume Codex."));
+  if (allMessages.length > visible.length) {
+    out.push(paint("2", `… ${allMessages.length - visible.length} more message(s) not shown.`), "");
+  }
+  if (!allMessages.length) out.push(paint("2", "No readable messages in this local transcript."), "");
+  out.push(line, paint("2", `History preview only. Double-click the chat in the sidebar to resume ${name}.`));
   return `${out.join("\n")}\n`;
 }

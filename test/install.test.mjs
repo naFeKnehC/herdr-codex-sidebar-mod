@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 
 const repo = fileURLToPath(new URL("..", import.meta.url));
 
-test("installs a self-contained mod without developer-specific paths", async () => {
-  const appHome = await mkdtemp(join(tmpdir(), "herdr-codex-install-"));
+test("installs a self-contained Agent History mod without developer-specific paths", async () => {
+  const appHome = await mkdtemp(join(tmpdir(), "herdr-agent-install-"));
   const result = spawnSync(process.execPath, [join(repo, "scripts", "sync-herdr.mjs")], {
     env: { ...process.env, HERDR_APP_HOME: appHome },
     encoding: "utf8",
@@ -18,9 +18,19 @@ test("installs a self-contained mod without developer-specific paths", async () 
 
   const modDir = join(appHome, "mods", "herdr-codex-sidebar-mod");
   const required = [
+    "mod.json",
     "main.js",
+    "view-model.mjs",
+    "live-state.mjs",
+    "launch-target.mjs",
+    "helper/agent-history.mjs",
     "helper/codex-history.mjs",
-    "helper/lib/codex-app-server.mjs",
+    "helper/lib/adapters/claude.mjs",
+    "helper/lib/adapters/codex.mjs",
+    "helper/lib/adapters/hermes.mjs",
+    "helper/lib/cache.mjs",
+    "helper/lib/normalize.mjs",
+    "helper/lib/transcript.mjs",
     "bin/codex-history",
     "bin/codex",
     "bin/hc",
@@ -34,6 +44,16 @@ test("installs a self-contained mod without developer-specific paths", async () 
     assert.notEqual(mode & 0o111, 0, `${name} must remain executable`);
   }
 
-  const main = await readFile(join(modDir, "main.js"), "utf8");
-  assert.doesNotMatch(main, /\/Users\/[^/"\s]+/);
+  const manifest = JSON.parse(await readFile(join(modDir, "mod.json"), "utf8"));
+  assert.equal(manifest.title, "Agent History");
+  assert.doesNotMatch(manifest.title, /codex desktop/i);
+
+  for (const relative of ["main.js", "view-model.mjs", "helper/agent-history.mjs"]) {
+    const source = await readFile(join(modDir, relative), "utf8");
+    assert.doesNotMatch(source, /\/Users\/[^/"\s]+/, relative);
+  }
+
+  await assert.rejects(stat(join(appHome, "data", "herdr-codex-sidebar-mod", "threads.json")));
+  await assert.rejects(stat(join(modDir, "gpui-kit.d.ts")));
+  await assert.rejects(stat(join(modDir, "threads.json")));
 });

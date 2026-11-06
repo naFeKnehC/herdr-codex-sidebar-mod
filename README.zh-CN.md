@@ -1,23 +1,26 @@
-# Herdr Codex 侧栏 Mod
+# Herdr Agent History 侧栏 Mod
 
 [English](README.md) | 简体中文
 
-一个用于浏览 Codex 项目和对话、恢复已有 thread，并将历史与 Herdr 实时
-Agents 视图分离的 Herdr mod。已关联项目中的 thread 会从项目根目录恢复，
-即使它最初是在另一个目录创建的。
+一个在 Herdr 中按 Agent（Claude Code / Codex / Hermes）和真实工作目录
+浏览、预览、恢复历史会话的 mod。侧栏一次只显示一个 Agent，通过右上角
+切换器在三者之间切换；每个 Agent 内按会话的真实 `cwd` 精确分组，不使用
+Codex project/assignment、Claude 编码目录名或 Hermes projects.db。
 
 ## 使用
 
-- 单击对话：打开带标题的 tab，并输出只读的历史预览，不启动 Codex。
-- 双击对话：在同一个 tab 中恢复对应的 Codex thread。
-- Codex 会话中按下 Ctrl+C 后会返回该 tab 的 shell，tab 不会被关闭。
-- 已在运行的对话会直接聚焦，不会重复启动。
-- 新会话的 tab 名会立即跟随推断出的 thread。Herdr 中显示的实时 Agent 标题
-  仍由 Codex 自己的终端标题更新决定。
+- 右上角 Agent 切换器：Claude / Codex / Hermes 三选一，没有 All，不混排。
+- 单击对话：打开带标题的 tab，输出只读历史预览，不启动任何 Agent。
+- 双击对话：在正确 cwd 中恢复对应 Agent 的会话。
+- 已在运行的会话会直接聚焦，不会重复启动。
+- Agent 退出后，预览/占位 tab 仍可在原 tab 中继续恢复。
+- 目录按真实 cwd 精确分组；目录不存在或无权限时，历史仍可预览，但恢复
+  会禁用并说明原因，不会静默回退到 home。
 
 ## 安装
 
-要求：Node.js 20+、Codex CLI 和 Herdr App。
+要求：Node.js 20+、Herdr App，以及至少一个已安装的 Agent（Claude Code /
+Codex / Hermes）。
 
 ```sh
 git clone git@github.com:naFeKnehC/herdr-codex-sidebar-mod.git
@@ -30,7 +33,7 @@ herdr-app check ~/.config/herdr-app/mods/herdr-codex-sidebar-mod
 `sync:herdr` 会把该目录复制到
 `~/.config/herdr-app/mods/herdr-codex-sidebar-mod`，因此直接复制该目录也可以
 运行。helper 缓存位于
-`~/.config/herdr-app/data/herdr-codex-sidebar-mod`，不属于 mod 本身。
+`~/.config/herdr-app/data/herdr-agent-history/history.json`，不属于 mod 本身。
 
 如果 Herdr 使用自定义 home，安装时需要设置相同的环境变量：
 
@@ -42,6 +45,11 @@ HERDR_APP_HOME=/path/to/herdr-app npm run sync:herdr
 绝对路径。wrapper 会从用户环境中查找 Node、`codex` 和 `hc`，并为常见的
 macOS/Linux 安装位置提供回退。该 mod 目前面向 POSIX 系统，并要求用户终端
 环境中的 `codex` 命令可用。
+
+## 文档
+
+- [产品功能文档](docs/PRODUCT.zh-CN.md)：目标功能、交互规则、状态模型和当前差距。
+- [测试文档](docs/TEST.zh-CN.md)：完整验收矩阵、自动化覆盖情况和发布门槛。
 
 ## 开发
 

@@ -75,18 +75,45 @@ test("falls back to response items without environment messages", () => {
 
 test("renders a readable history preview and strips terminal escapes", () => {
   const output = renderTranscript({
+    agent: "codex",
     title: "A chat",
-    threadId: "thread-1",
+    sessionId: "thread-1",
     cwd: "/tmp/project",
     messages: [{ role: "user", text: "\x1b]0;owned\x07Hello", at: "2026-11-02T10:00:00.000Z" }],
     color: false,
   });
   assert.match(output, /Codex history: A chat/);
+  assert.match(output, /Session thread-1/);
   assert.match(output, /You/);
   assert.match(output, /Hello/);
   assert.doesNotMatch(output, /owned/);
   assert.match(output, /Double-click the chat/);
   assert.equal(sanitizeTerminalText("\x1b[31mred\x1b[0m"), "red");
+});
+
+test("renders Claude and Hermes previews with their own names", () => {
+  for (const [agent, name] of [["claude", "Claude"], ["hermes", "Hermes"]]) {
+    const output = renderTranscript({
+      agent,
+      title: "Chat",
+      sessionId: "s1",
+      messages: [{ role: "assistant", text: "Answer" }],
+      color: false,
+    });
+    assert.match(output, new RegExp(`${name} history: Chat`));
+    assert.match(output, new RegExp(`resume ${name}`));
+    assert.match(output, /Answer/);
+  }
+});
+
+test("limits very large previews and sanitizes control characters", () => {
+  const messages = Array.from({ length: 250 }, (_, index) => ({
+    role: index % 2 ? "user" : "assistant",
+    text: `\u0007message ${index}`,
+  }));
+  const output = renderTranscript({ agent: "claude", title: "Big", sessionId: "s", messages, color: false });
+  assert.match(output, /more message\(s\) not shown/);
+  assert.doesNotMatch(output, /\u0007/);
 });
 
 test("finds and reads a transcript by thread id", async () => {
